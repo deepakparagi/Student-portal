@@ -3,22 +3,52 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { demoMaterials, demoQuizzes } from "../demo-data";
+import {
+  Award,
+  Sparkles,
+  Upload,
+  Brain,
+  FileText,
+  Clock,
+  Trash2,
+  RefreshCw,
+  Search,
+  CheckCircle2,
+  AlertCircle,
+  Play,
+  Calendar,
+  Layers,
+  HelpCircle,
+  Loader2,
+} from "lucide-react";
 import { Navbar } from "../navbar";
+import {
+  PageHeader,
+  Button,
+  ConfirmDialog,
+  EmptyState,
+  Skeleton,
+} from "@/components/ui";
 
-type Material = { id: number; title: string; status: string };
-type Quiz = { id: number; title: string; materialId: number; createdAt: string };
+type Material = {
+  id: number;
+  title: string;
+  fileName?: string;
+  fileSize?: number;
+  status: string;
+  createdAt?: string;
+};
+
+type Quiz = {
+  id: number;
+  title: string;
+  materialId?: number;
+  createdAt: string;
+  questionCount?: number;
+  bestScore?: number;
+};
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-
-const DEFAULT_OPENROUTER_KEY =
-  process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || "";
-
-const DEFAULT_OPENROUTER_MODEL =
-  process.env.NEXT_PUBLIC_OPENROUTER_MODEL ||
-  "nvidia/nemotron-3-ultra-550b-a55b:free";
-
-const LEGACY_KEY_PREFIX = "sk-or-v1-8a9";
 
 export default function QuizzesPage() {
   const router = useRouter();
@@ -26,11 +56,12 @@ export default function QuizzesPage() {
 
   const [materials, setMaterials] = useState<Material[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState<string | number | null>(null);
+  const [busyState, setBusyState] = useState<string | number | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [demoMode, setDemoMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Deletion modal state
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -38,500 +69,324 @@ export default function QuizzesPage() {
     id: number;
     title: string;
   } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Topic input state
   const [topicInput, setTopicInput] = useState("");
   const [questionCount, setQuestionCount] = useState(5);
 
-  // OpenRouter API Key State (defaults to configured key)
-  const [openRouterKey, setOpenRouterKey] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("openrouter_api_key");
-      if (stored && stored.trim().length > 0 && !stored.startsWith(LEGACY_KEY_PREFIX)) {
-        return stored.trim();
-      }
-      try {
-        localStorage.setItem("openrouter_api_key", DEFAULT_OPENROUTER_KEY);
-      } catch {}
-      return DEFAULT_OPENROUTER_KEY;
-    }
-    return DEFAULT_OPENROUTER_KEY;
-  });
-  const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
-  const [keyInput, setKeyInput] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("openrouter_api_key");
-      if (stored && stored.trim().length > 0 && !stored.startsWith(LEGACY_KEY_PREFIX)) {
-        return stored.trim();
-      }
-      return DEFAULT_OPENROUTER_KEY;
-    }
-    return DEFAULT_OPENROUTER_KEY;
-  });
-
-  const [testStatus, setTestStatus] = useState<{ testing: boolean; result?: { valid: boolean; message?: string; error?: string; rate_limited?: boolean } }>({ testing: false });
-  const [showPassword, setShowPassword] = useState(false);
-
-  const handleTestKey = async () => {
-    const targetKey = keyInput.trim() || openRouterKey.trim();
-    if (!targetKey) {
-      setTestStatus({ testing: false, result: { valid: false, error: "Please paste your API key in the input box first." } });
-      return;
-    }
-    setTestStatus({ testing: true, result: undefined });
+  const loadData = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/quizzes/test-key`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: targetKey }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.valid) {
-        setTestStatus({ testing: false, result: { valid: true, message: data.message || "Key is verified and ready for quiz generation!" } });
-      } else {
-        setTestStatus({
-          testing: false,
-          result: {
-            valid: false,
-            error: data.message || data.error || data.detail || `Validation failed (HTTP ${res.status})`,
-            rate_limited: data.rate_limited || res.status === 429,
-          },
-        });
-      }
-    } catch (err: unknown) {
-      setTestStatus({ testing: false, result: { valid: false, error: err instanceof Error ? err.message : "Could not reach backend test endpoint." } });
-    }
-  };
-
-  const saveOpenRouterKey = () => {
-    const clean = keyInput.trim();
-    setOpenRouterKey(clean);
-    if (typeof window !== "undefined") {
-      if (clean) {
-        localStorage.setItem("openrouter_api_key", clean);
-      } else {
-        localStorage.removeItem("openrouter_api_key");
-      }
-    }
-    setShowKeyModal(false);
-  };
-
-  const load = useCallback(async () => {
-    try {
-      const [materialsResponse, quizzesResponse] = await Promise.all([
+      const [materialsRes, quizzesRes] = await Promise.all([
         fetch(`${API}/materials`, { credentials: "include" }),
         fetch(`${API}/quizzes`, { credentials: "include" }),
       ]);
-      if (materialsResponse.status === 401 || materialsResponse.status === 403) {
+
+      if (materialsRes.status === 401 || materialsRes.status === 403) {
         router.push("/login");
         return;
       }
-      if (!materialsResponse.ok || !quizzesResponse.ok) {
-        throw Error("Could not load your study materials and quizzes.");
+
+      if (materialsRes.ok) {
+        const rawMaterials = await materialsRes.json();
+        setMaterials(Array.isArray(rawMaterials) ? rawMaterials : (rawMaterials?.content ?? []));
       }
-      const rawMaterials = await materialsResponse.json();
-      setMaterials(Array.isArray(rawMaterials) ? rawMaterials : (rawMaterials?.content ?? []));
-      const rawQuizzes = await quizzesResponse.json();
-      setQuizzes(Array.isArray(rawQuizzes) ? rawQuizzes : (rawQuizzes?.content ?? []));
-    } catch {
-      setDemoMode(true);
-      setMaterials(demoMaterials);
-      setQuizzes(demoQuizzes);
+
+      if (quizzesRes.ok) {
+        const rawQuizzes = await quizzesRes.json();
+        setQuizzes(Array.isArray(rawQuizzes) ? rawQuizzes : (rawQuizzes?.content ?? []));
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load quizzes and materials.");
+    } finally {
+      setLoading(false);
     }
   }, [router]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void load();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [load]);
+    void loadData();
+  }, [loadData]);
 
-  // Generate quiz by topic entered by user
-  async function generateByTopic(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const formData = new FormData(form);
-    const formTopic = ((formData.get("topic") as string) || topicInput).trim();
+  // Generate quiz by custom topic
+  async function generateByTopic(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formTopic = topicInput.trim();
     if (!formTopic) return;
 
-    setBusy("topic");
+    setBusyState("topic");
     setError("");
+    setNotice("");
 
     try {
-      if (demoMode) {
-        const previewQuestions = [
-          {
-            question: `In ${formTopic}, what is the fundamental purpose and core mechanism?`,
-            options: [
-              `Core governing mechanism and standard implementation in ${formTopic}`,
-              `An unrelated secondary configuration with minimal impact`,
-              `A deprecated protocol that has been replaced by modern tooling`,
-              `A client-side presentation filter without state persistence`,
-            ],
-            correctAnswer: `Core governing mechanism and standard implementation in ${formTopic}`,
-            explanation: `Foundational understanding of ${formTopic} requires identifying its core mechanism and state lifecycle.`,
-            difficulty: "medium",
-            source_reference: `${formTopic} Overview`,
-          },
-          {
-            question: `What critical prerequisite or invariant must be maintained when working with ${formTopic}?`,
-            options: [
-              `Strict validation of boundary constraints and domain integrity`,
-              `Ignoring edge case exceptions during processing`,
-              `Disabling concurrency controls entirely`,
-              `Relying on arbitrary hardcoded offsets`,
-            ],
-            correctAnswer: `Strict validation of boundary constraints and domain integrity`,
-            explanation: `Invariants and boundary validation prevent inconsistent state and runtime exceptions in ${formTopic}.`,
-            difficulty: "medium",
-            source_reference: `${formTopic} Best Practices`,
-          },
-          {
-            question: `How does ${formTopic} handle optimization and performance trade-offs?`,
-            options: [
-              `Balancing throughput, latency, and resource utilization systematically`,
-              `Allocating unbounded memory without garbage collection or cleanup`,
-              `Removing all caching layers to force continuous re-computation`,
-              `Executing sequential blocking loops on the main event thread`,
-            ],
-            correctAnswer: `Balancing throughput, latency, and resource utilization systematically`,
-            explanation: `Effective optimization in ${formTopic} balances throughput, latency, and hardware constraints.`,
-            difficulty: "hard",
-            source_reference: `${formTopic} Performance`,
-          },
-        ].slice(0, questionCount);
-
-        const customDemoQuiz = {
-          id: 9999,
-          title: `Quiz on ${formTopic}`,
-          materialId: 101,
-          createdAt: new Date().toISOString(),
-          questions: previewQuestions,
-        };
-        if (typeof window !== "undefined") {
-          sessionStorage.setItem("custom_demo_quiz", JSON.stringify(customDemoQuiz));
-        }
-        router.push("/quizzes/9999");
-        return;
-      }
-
-      const openRouterKey = typeof window !== "undefined" ? localStorage.getItem("openrouter_api_key") : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (openRouterKey) headers["X-OpenRouter-Api-Key"] = openRouterKey;
-
-      const response = await fetch(`${API}/quizzes/generate`, {
+      const res = await fetch(`${API}/quizzes/generate-by-topic`, {
         method: "POST",
         credentials: "include",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: formTopic, count: questionCount }),
       });
 
-      const quiz = await response.json().catch(() => ({}));
-      if (!response.ok) throw Error(quiz.error || quiz.detail || quiz.message || "Could not generate quiz on this topic.");
-      router.push(`/quizzes/${quiz.id}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not generate a quiz.");
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || body.error || "Quiz generation failed.");
+
+      setNotice(`Quiz generated successfully on topic "${formTopic}"!`);
+      setTopicInput("");
+      if (body?.id) {
+        router.push(`/quizzes/${body.id}`);
+      } else {
+        void loadData();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate topic quiz.");
     } finally {
-      setBusy(null);
+      setBusyState(null);
     }
   }
 
-  // Generate quiz from selected uploaded material
-  async function generate(materialId: number) {
-    setBusy(materialId);
+  // Generate quiz from material
+  async function generateFromMaterial(materialId: number) {
+    setBusyState(materialId);
     setError("");
+    setNotice("");
+
     try {
-      if (demoMode) {
-        const found = demoQuizzes.find((q) => q.materialId === materialId);
-        if (found) {
-          router.push(`/quizzes/${found.id}`);
-          return;
-        }
-        router.push(`/quizzes/201`);
-        return;
-      }
-
-      const openRouterKey = typeof window !== "undefined" ? localStorage.getItem("openrouter_api_key") : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (openRouterKey) headers["X-OpenRouter-Api-Key"] = openRouterKey;
-
-      const response = await fetch(`${API}/quizzes/generate`, {
+      const res = await fetch(`${API}/quizzes/generate/${materialId}`, {
         method: "POST",
         credentials: "include",
-        headers,
-        body: JSON.stringify({ materialId, count: questionCount }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ count: questionCount }),
       });
-      const quiz = await response.json().catch(() => ({}));
-      if (!response.ok) throw Error(quiz.error || quiz.detail || quiz.message || "Could not generate a quiz.");
-      router.push(`/quizzes/${quiz.id}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not generate a quiz.");
+
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || body.error || "Quiz generation failed.");
+
+      setNotice("Active recall quiz generated from your uploaded note!");
+      if (body?.id) {
+        router.push(`/quizzes/${body.id}`);
+      } else {
+        void loadData();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Quiz generation failed.");
     } finally {
-      setBusy(null);
+      setBusyState(null);
     }
   }
 
-  // Direct upload notes and immediately generate quiz
-  async function handleNotesUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  // Upload notes and generate quiz immediately
+  async function handleNotesUpload(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
     setError("");
+    setNotice("");
+    const formData = new FormData();
+    formData.append("file", file);
 
     try {
-      if (demoMode) {
-        router.push("/quizzes/201");
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const uploadResp = await fetch(`${API}/materials`, {
+      const uploadRes = await fetch(`${API}/materials`, {
         method: "POST",
         credentials: "include",
         body: formData,
       });
+      const material = await uploadRes.json();
+      if (!uploadRes.ok) throw new Error(material.message || material.error || "Upload failed.");
 
-      const uploaded = await uploadResp.json().catch(() => ({}));
-      if (!uploadResp.ok) throw Error(uploaded.error || uploaded.message || "Upload failed.");
+      setNotice(`Uploaded "${material.title}". Processing concepts for quiz generation...`);
+      setMaterials((curr) => [material, ...curr]);
 
-      // Generate quiz from this new material
-      const openRouterKey = typeof window !== "undefined" ? localStorage.getItem("openrouter_api_key") : null;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (openRouterKey) headers["X-OpenRouter-Api-Key"] = openRouterKey;
-
-      const quizResp = await fetch(`${API}/quizzes/generate`, {
-        method: "POST",
-        credentials: "include",
-        headers,
-        body: JSON.stringify({ materialId: uploaded.id, count: questionCount }),
-      });
-
-      const quiz = await quizResp.json().catch(() => ({}));
-      if (!quizResp.ok) throw Error(quiz.error || quiz.detail || "Could not generate quiz from uploaded file.");
-      router.push(`/quizzes/${quiz.id}`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Upload and quiz generation failed.");
+      // Poll until completed or trigger quiz
+      setTimeout(() => {
+        void loadData();
+      }, 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
       setUploading(false);
-      if (event.target) event.target.value = "";
+      e.target.value = "";
     }
   }
 
-  // Delete a saved quiz
-  async function deleteQuiz(quizId: number) {
-    setBusy(`delete-quiz-${quizId}`);
-    setError("");
-    setNotice("");
+  // Execute deletion
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+
     try {
-      if (!demoMode) {
-        const response = await fetch(`${API}/quizzes/${quizId}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        if (!response.ok) {
-          const res = await response.json().catch(() => ({}));
-          throw new Error(res.error || res.message || "Failed to delete quiz.");
-        }
+      const endpoint = deleteTarget.type === "material" ? `/materials/${deleteTarget.id}` : `/quizzes/${deleteTarget.id}`;
+      const res = await fetch(`${API}${endpoint}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Could not delete ${deleteTarget.type}.`);
+
+      if (deleteTarget.type === "material") {
+        setMaterials((curr) => curr.filter((m) => m.id !== deleteTarget.id));
+      } else {
+        setQuizzes((curr) => curr.filter((q) => q.id !== deleteTarget.id));
       }
-      setQuizzes((prev) => prev.filter((q) => q.id !== quizId));
+      setNotice(`Deleted "${deleteTarget.title}".`);
       setDeleteTarget(null);
-      setNotice("Quiz deleted successfully.");
-      setTimeout(() => setNotice(""), 4000);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete quiz.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete action failed.");
     } finally {
-      setBusy(null);
+      setIsDeleting(false);
     }
   }
 
-  // Delete an uploaded study note
-  async function deleteMaterial(materialId: number) {
-    setBusy(`delete-mat-${materialId}`);
-    setError("");
-    setNotice("");
-    try {
-      if (!demoMode) {
-        const response = await fetch(`${API}/materials/${materialId}`, {
-          method: "DELETE",
-          credentials: "include",
-        });
-        if (!response.ok) {
-          const res = await response.json().catch(() => ({}));
-          throw new Error(res.error || res.message || "Failed to delete note.");
-        }
-      }
-      setMaterials((prev) => prev.filter((m) => m.id !== materialId));
-      setQuizzes((prev) => prev.filter((q) => q.materialId !== materialId));
-      setDeleteTarget(null);
-      setNotice("Study note deleted successfully.");
-      setTimeout(() => setNotice(""), 4000);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to delete note.");
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  const readyMaterials = materials.filter((material) => material.status === "COMPLETED");
+  const readyMaterials = materials.filter((m) => m.status === "COMPLETED");
 
   return (
-    <>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <Navbar />
-      <main className="task-page">
-        <section className="task-content">
-        {demoMode && (
-          <div className="demo-banner">
-            <strong>Preview mode</strong>
-            <span>Sample quizzes available. Generate creates an interactive preview round.</span>
-          </div>
-        )}
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "8px" }}>
-          <div>
-            <p className="eyebrow" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span>Check your recall & mastery</span>
-              <span style={{ fontSize: "9px", padding: "2px 7px", borderRadius: "10px", background: "rgba(132,229,188,0.15)", color: "var(--mint)", border: "1px solid rgba(132,229,188,0.3)" }}>
-                {openRouterKey ? "⚡ Nemotron 3 Ultra (OpenRouter)" : "⚡ Free AI Models Active"}
-              </span>
-            </p>
-            <h1>Quizzes</h1>
-            <p className="task-lead">
-              Generate quizzes based on any topic you enter or from your uploaded notes. Each round evaluates your answers, provides explanations, and tracks accuracy.
-            </p>
-          </div>
+      <main id="main-content" className="app-container page-wrapper" style={{ flex: 1 }}>
+        {/* Unified Page Header */}
+        <PageHeader
+          eyebrow="Active Recall & Assessment"
+          eyebrowIcon={<Sparkles size={13} color="var(--accent-lime)" />}
+          title="Practice Quizzes."
+          description="Source-grounded multiple-choice evaluations generated from your notes with verified citations and rationale."
+          actions={
+            <Button
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              icon={<Upload size={15} />}
+            >
+              {uploading ? "Uploading Notes..." : "Upload Notes to Quiz"}
+            </Button>
+          }
+        />
 
-          <button
-            type="button"
-            className="button quiet"
-            onClick={() => {
-              setKeyInput(openRouterKey || (typeof window !== "undefined" ? localStorage.getItem("openrouter_api_key") || "" : ""));
-              setShowKeyModal(true);
-            }}
-            style={{
-              fontSize: "11px",
-              padding: "8px 14px",
-              borderRadius: "10px",
-              border: openRouterKey ? "1px solid rgba(132,229,188,0.3)" : "1px solid rgba(255,180,50,0.4)",
-              color: openRouterKey ? "var(--mint)" : "var(--paper)",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <span>{openRouterKey ? "🔑 OpenRouter Active" : "🔑 Set OpenRouter Key"}</span>
-            <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: openRouterKey ? "#4ade80" : "#f59e0b" }} />
-          </button>
-        </div>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleNotesUpload}
+          accept=".pdf,.txt,.docx"
+          style={{ display: "none" }}
+        />
 
         {notice && (
           <div
+            role="status"
+            aria-live="polite"
             style={{
-              padding: "10px 16px",
-              borderRadius: "10px",
-              background: "rgba(132, 229, 188, 0.12)",
-              border: "1px solid rgba(132, 229, 188, 0.3)",
-              color: "var(--mint)",
+              padding: "12px 16px",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--success-bg)",
+              border: "1px solid var(--success-border)",
+              color: "#86efac",
               fontSize: "13px",
-              marginBottom: "16px",
+              marginBottom: "20px",
               display: "flex",
               alignItems: "center",
               gap: "8px",
             }}
           >
-            <span>✅</span> {notice}
+            <CheckCircle2 size={16} />
+            <span>{notice}</span>
           </div>
         )}
 
-        {error && <p className="form-error" role="alert">{error}</p>}
+        {error && (
+          <div
+            role="alert"
+            style={{
+              padding: "12px 16px",
+              borderRadius: "var(--radius-sm)",
+              background: "var(--danger-bg)",
+              border: "1px solid var(--danger-border)",
+              color: "#fca5a5",
+              fontSize: "13px",
+              marginBottom: "20px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}
+          >
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
 
-        {/* Section 1: Generate by Topic */}
-        <section className="task-list-section" style={{ background: "rgba(255,255,255,0.03)", padding: "20px", borderRadius: "16px", border: "1px solid var(--line-bright)" }}>
-          <div className="section-title" style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
+        {/* Async Generating State Banner (Resolves dimmed button issue) */}
+        {busyState && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="glass-panel"
+            style={{
+              padding: "20px",
+              borderRadius: "var(--radius-md)",
+              border: "1px solid rgba(122, 255, 135, 0.4)",
+              background: "rgba(122, 255, 135, 0.08)",
+              marginBottom: "24px",
+              display: "flex",
+              alignItems: "center",
+              gap: "14px",
+            }}
+          >
+            <Loader2 size={24} className="animate-spin" color="var(--accent-lime)" />
             <div>
-              <p className="eyebrow">AI Quiz Generator</p>
-              <h2>Generate by Topic</h2>
+              <strong style={{ color: "var(--accent-lime)", fontSize: "14px", display: "block" }}>
+                Synthesizing Active Recall Quiz...
+              </strong>
+              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--paper-soft)" }}>
+                Extracting core definitions, structuring answer options, and verifying citations from your source context.
+              </p>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                id="connect-key-btn"
-                onClick={() => {
-                  setKeyInput(openRouterKey || (typeof window !== "undefined" ? localStorage.getItem("openrouter_api_key") || "" : ""));
-                  setTestStatus({ testing: false });
-                  setShowKeyModal(true);
-                }}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "7px",
-                  padding: "5px 13px",
-                  borderRadius: "20px",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  background: openRouterKey ? "rgba(132,229,188,0.12)" : "rgba(255,180,50,0.12)",
-                  border: openRouterKey ? "1px solid rgba(132,229,188,0.3)" : "1px solid rgba(255,180,50,0.4)",
-                  color: openRouterKey ? "var(--mint)" : "#f8b739",
-                  transition: "all 0.2s ease"
-                }}
-              >
-                <span>🔑</span>
-                <span>{openRouterKey ? "API Key Connected" : "Connect API Key"}</span>
-                <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: openRouterKey ? "#4ade80" : "#f59e0b" }} />
-              </button>
-              <span style={{ fontSize: "11px", color: "var(--mint)" }}>⚡ Enter any subject or concept</span>
+          </div>
+        )}
+
+        {/* Section 1: AI Quiz Generator by Topic */}
+        <section
+          className="glass-panel"
+          style={{
+            padding: "24px 28px",
+            borderRadius: "var(--radius-lg)",
+            marginBottom: "32px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px", marginBottom: "16px" }}>
+            <div>
+              <span className="eyebrow" style={{ color: "var(--mint)" }}>
+                Instant Generation
+              </span>
+              <h2 style={{ fontSize: "20px", fontWeight: 700, margin: "4px 0", color: "var(--paper)" }}>
+                Generate Quiz by Topic or Concept
+              </h2>
+              <p style={{ fontSize: "13px", color: "var(--mist)", margin: 0 }}>
+                Enter any syllabus chapter, historical era, or scientific topic to generate custom recall questions.
+              </p>
             </div>
           </div>
 
-          <form id="topic-quiz-form" onSubmit={generateByTopic} style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "flex-end" }}>
-            <div style={{ flex: "1 1 280px" }}>
-              <label htmlFor="topic-input" style={{ display: "block", fontSize: "11px", color: "var(--mist)", marginBottom: "6px" }}>
-                Topic / Subject
+          <form onSubmit={generateByTopic} style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end" }}>
+            <div style={{ flex: "1 1 320px" }}>
+              <label htmlFor="topic-input" style={{ display: "block", fontSize: "12px", color: "var(--paper)", fontWeight: 600, marginBottom: "6px" }}>
+                Topic / Subject Name
               </label>
               <input
                 id="topic-input"
-                name="topic"
                 type="text"
                 required
                 value={topicInput}
                 onChange={(e) => setTopicInput(e.target.value)}
-                placeholder="e.g. Python Object Oriented Programming, Linear Algebra, Cell Biology..."
-                style={{
-                  width: "100%",
-                  height: "42px",
-                  padding: "0 12px",
-                  borderRadius: "9px",
-                  background: "rgba(0,0,0,0.35)",
-                  border: "1px solid var(--line)",
-                  color: "var(--paper)",
-                  fontSize: "13px",
-                }}
+                placeholder="e.g. Mitosis and Cell Division, French Revolution, Binary Search Trees..."
+                className="form-control"
               />
             </div>
 
-            <div style={{ width: "110px" }}>
-              <label htmlFor="question-count-select" style={{ display: "block", fontSize: "11px", color: "var(--mist)", marginBottom: "6px" }}>
+            <div style={{ width: "130px" }}>
+              <label htmlFor="question-count-select" style={{ display: "block", fontSize: "12px", color: "var(--paper)", fontWeight: 600, marginBottom: "6px" }}>
                 Questions
               </label>
               <select
                 id="question-count-select"
-                name="count"
                 value={questionCount}
                 onChange={(e) => setQuestionCount(Number(e.target.value))}
-                style={{
-                  width: "100%",
-                  height: "42px",
-                  padding: "0 10px",
-                  borderRadius: "9px",
-                  background: "rgba(0,0,0,0.35)",
-                  border: "1px solid var(--line)",
-                  color: "var(--paper)",
-                  fontSize: "12px",
-                }}
+                className="form-control"
               >
                 <option value={3}>3 MCQs</option>
                 <option value={5}>5 MCQs</option>
@@ -539,40 +394,38 @@ export default function QuizzesPage() {
               </select>
             </div>
 
-            <button
-              id="generate-topic-btn"
+            <Button
               type="submit"
-              className="button primary"
-              disabled={busy === "topic"}
-              style={{ height: "42px", padding: "0 20px" }}
+              variant="primary"
+              loading={busyState === "topic"}
+              style={{ minHeight: "44px" }}
             >
-              {busy === "topic" ? "Generating Quiz..." : "Generate Quiz on Topic"}
-            </button>
+              Generate Quiz
+            </Button>
           </form>
 
-          {/* Quick starter topic chips */}
-          <div style={{ marginTop: "14px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
-            <span style={{ fontSize: "11px", color: "var(--mist)", fontWeight: 500 }}>⚡ Popular topics:</span>
+          {/* Quick topic suggestion pills */}
+          <div style={{ marginTop: "16px", display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: "12px", color: "var(--mist)", fontWeight: 600 }}>Suggested:</span>
             {[
-              "Operating Systems Concurrency & Deadlocks",
-              "Database Normalization & ACID",
-              "Computer Networks TCP/IP",
-              "Data Structures Trees & Heaps",
-            ].map((topic, i) => (
+              "Operating Systems Concurrency",
+              "Database Normalization",
+              "TCP/IP Networking",
+              "Cellular Respiration",
+            ].map((topic) => (
               <button
                 key={topic}
-                id={`quick-quiz-topic-${i}`}
                 type="button"
                 onClick={() => setTopicInput(topic)}
                 style={{
-                  fontSize: "11px",
-                  padding: "4px 10px",
+                  fontSize: "12px",
+                  padding: "5px 12px",
                   borderRadius: "999px",
-                  background: topicInput === topic ? "rgba(46, 213, 115, 0.2)" : "rgba(255, 255, 255, 0.05)",
-                  border: topicInput === topic ? "1px solid var(--lime)" : "1px solid rgba(255, 255, 255, 0.1)",
-                  color: topicInput === topic ? "var(--lime)" : "var(--paper)",
+                  background: topicInput === topic ? "var(--accent-lime-dim)" : "rgba(255, 255, 255, 0.05)",
+                  border: topicInput === topic ? "1px solid var(--accent-lime)" : "1px solid var(--line)",
+                  color: topicInput === topic ? "var(--accent-lime)" : "var(--paper)",
                   cursor: "pointer",
-                  transition: "all 0.2s ease",
+                  transition: "all 0.18s ease",
                 }}
               >
                 + {topic}
@@ -581,476 +434,197 @@ export default function QuizzesPage() {
           </div>
         </section>
 
-        {/* Section 2: Generate from Uploaded Notes */}
-        <section className="task-list-section" style={{ marginTop: "32px" }}>
-          <div className="section-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+        {/* Section 2: Grounded Quiz from Uploaded Materials */}
+        <section style={{ marginBottom: "36px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "16px" }}>
             <div>
               <p className="eyebrow">Document Grounded</p>
-              <h2>Generate from uploaded notes</h2>
+              <h2 className="section-heading" style={{ fontSize: "20px", margin: 0 }}>
+                Generate from Uploaded Notes ({readyMaterials.length})
+              </h2>
             </div>
-            <div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleNotesUpload}
-                accept=".pdf,.txt,.docx"
-                style={{ display: "none" }}
-              />
-              <button
-                type="button"
-                className="button quiet"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                style={{ fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                📎 {uploading ? "Uploading & Generating..." : "Upload notes to quiz"}
-              </button>
-            </div>
+            <span style={{ fontSize: "12px", color: "var(--mist)" }}>
+              Directly cited from your processed materials
+            </span>
           </div>
 
-          {readyMaterials.length === 0 ? (
-            <div className="empty-state">
-              <h3>No processed notes yet.</h3>
-              <p>Upload a PDF, TXT, or DOCX note above or generate a quiz by entering a topic!</p>
+          {loading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <Skeleton height="68px" />
+              <Skeleton height="68px" />
             </div>
+          ) : readyMaterials.length === 0 ? (
+            <EmptyState
+              icon={FileText}
+              title="No processed study materials available"
+              description="Upload a PDF, TXT, or DOCX note using the button above to generate source-grounded practice questions."
+              action={
+                <Button
+                  variant="secondary"
+                  onClick={() => fileInputRef.current?.click()}
+                  icon={<Upload size={14} />}
+                >
+                  Upload Study Note
+                </Button>
+              }
+            />
           ) : (
-            <div className="material-list">
-              {readyMaterials.map((material) => (
-                <article className="material-item" key={material.id}>
-                  <div className="file-icon">DOC</div>
-                  <div className="material-copy">
-                    <h3>{material.title}</h3>
-                    <p>Ready for question generation</p>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <button
-                      className="button primary"
-                      onClick={() => void generate(material.id)}
-                      disabled={busy === material.id || busy === `delete-mat-${material.id}`}
-                    >
-                      {busy === material.id ? "Generating..." : "Generate quiz"}
-                    </button>
-                    <button
-                      type="button"
-                      className="button quiet"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setDeleteTarget({ type: "material", id: material.id, title: material.title });
-                      }}
-                      disabled={busy === `delete-mat-${material.id}`}
-                      style={{
-                        padding: "7px 12px",
-                        fontSize: "12px",
-                        color: "#ff7070",
-                        borderColor: "rgba(255, 112, 112, 0.35)",
-                        background: "rgba(255, 70, 70, 0.1)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        cursor: "pointer",
-                      }}
-                      title="Delete this study note"
-                    >
-                      {busy === `delete-mat-${material.id}` ? "Deleting..." : "🗑️ Delete"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Section 3: Past Generated Quizzes */}
-        <section className="task-list-section" style={{ marginTop: "32px" }}>
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">Practice rounds</p>
-              <h2>Past quizzes</h2>
-            </div>
-            <span>{quizzes.length} saved</span>
-          </div>
-
-          {quizzes.length === 0 ? (
-            <div className="empty-state">
-              <h3>No quizzes saved yet.</h3>
-              <p>Create your first quiz using the topic generator above.</p>
-            </div>
-          ) : (
-            <div className="material-list">
-              {quizzes.map((quiz) => (
-                <article className="material-item" key={quiz.id}>
-                  <div className="file-icon">QUIZ</div>
-                  <div className="material-copy">
-                    <h3>{quiz.title}</h3>
-                    <p>Created {new Date(quiz.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Link className="small-action" href={`/quizzes/${quiz.id}`}>
-                      Take quiz →
-                    </Link>
-                    <button
-                      type="button"
-                      className="button quiet"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setDeleteTarget({ type: "quiz", id: quiz.id, title: quiz.title });
-                      }}
-                      disabled={busy === `delete-quiz-${quiz.id}`}
-                      style={{
-                        padding: "6px 12px",
-                        fontSize: "12px",
-                        color: "#ff7070",
-                        borderColor: "rgba(255, 112, 112, 0.35)",
-                        background: "rgba(255, 70, 70, 0.1)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        cursor: "pointer",
-                      }}
-                      title="Delete this quiz"
-                    >
-                      {busy === `delete-quiz-${quiz.id}` ? "Deleting..." : "🗑️ Delete"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </section>
-
-      {/* LLM / OpenRouter API Key Modal */}
-      {showKeyModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.8)",
-            backdropFilter: "blur(6px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px",
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowKeyModal(false);
-          }}
-        >
-          <div
-            style={{
-              background: "#0c1512",
-              border: "1px solid var(--line-bright)",
-              borderRadius: "18px",
-              padding: "26px",
-              maxWidth: "520px",
-              width: "100%",
-              boxShadow: "0 24px 50px rgba(0,0,0,0.75)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <h3 style={{ margin: 0, fontSize: "17px", display: "flex", alignItems: "center", gap: "8px", fontWeight: 700 }}>
-                <span>🔑</span> Configure AI Key for Quizzes
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowKeyModal(false)}
-                style={{ background: "none", border: "none", color: "var(--mist)", cursor: "pointer", fontSize: "18px" }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <p style={{ fontSize: "13px", color: "var(--mist)", lineHeight: "1.55", margin: "0 0 16px" }}>
-              Connect your API key to generate deep, accurate multiple-choice quizzes on <strong>any searched topic</strong>. We support both <strong>Groq</strong> (recommended, 100% free with 14,400 daily requests) and <strong>OpenRouter</strong>.
-            </p>
-
-            <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "11px", padding: "4px 9px", borderRadius: "12px", background: "rgba(132,229,188,0.1)", border: "1px solid rgba(132,229,188,0.25)", color: "var(--mint)" }}>
-                ⚡ Groq: <code>gsk_...</code> (Free &amp; Ultra-Fast)
-              </span>
-              <span style={{ fontSize: "11px", padding: "4px 9px", borderRadius: "12px", background: "rgba(168,231,255,0.1)", border: "1px solid rgba(168,231,255,0.25)", color: "var(--blue)" }}>
-                🌐 OpenRouter: <code>sk-or-v1-...</code>
-              </span>
-            </div>
-
-            <div style={{ marginBottom: "12px" }}>
-              <label style={{ display: "block", fontSize: "11px", color: "var(--mint)", marginBottom: "6px", fontWeight: 700, letterSpacing: "0.05em" }}>
-                API KEY
-              </label>
-              <div style={{ display: "flex", gap: "6px" }}>
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={keyInput}
-                  onChange={(e) => {
-                    setKeyInput(e.target.value);
-                    setTestStatus({ testing: false });
-                  }}
-                  placeholder="gsk_... or sk-or-v1-..."
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {readyMaterials.map((mat) => (
+                <article
+                  key={mat.id}
+                  className="glass-card"
                   style={{
-                    flex: 1,
-                    height: "42px",
-                    padding: "0 12px",
-                    borderRadius: "8px",
-                    background: "rgba(0,0,0,0.5)",
-                    border: "1px solid var(--line)",
-                    color: "var(--paper)",
-                    fontSize: "13px",
-                    fontFamily: "monospace",
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    padding: "0 12px",
-                    height: "42px",
-                    borderRadius: "8px",
-                    background: "rgba(255,255,255,0.06)",
-                    border: "1px solid var(--line)",
-                    color: "var(--mist)",
-                    cursor: "pointer",
-                    fontSize: "12px",
+                    padding: "16px 20px",
+                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "16px",
                   }}
                 >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-            </div>
-
-            {/* Test & Verification Result Box */}
-            {testStatus.testing && (
-              <div style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(168,231,255,0.08)", border: "1px solid rgba(168,231,255,0.2)", fontSize: "12px", color: "var(--blue)", marginBottom: "14px" }}>
-                ⏳ Testing connection to AI service...
-              </div>
-            )}
-            {testStatus.result && (
-              <div
-                style={{
-                  padding: "11px 14px",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  lineHeight: "1.5",
-                  marginBottom: "14px",
-                  background: testStatus.result.valid
-                    ? "rgba(132,229,188,0.12)"
-                    : testStatus.result.rate_limited
-                    ? "rgba(255,180,50,0.14)"
-                    : "rgba(255,90,90,0.12)",
-                  border: `1px solid ${
-                    testStatus.result.valid
-                      ? "rgba(132,229,188,0.35)"
-                      : testStatus.result.rate_limited
-                      ? "rgba(255,180,50,0.4)"
-                      : "rgba(255,90,90,0.3)"
-                  }`,
-                  color: testStatus.result.valid
-                    ? "var(--mint)"
-                    : testStatus.result.rate_limited
-                    ? "#f8b739"
-                    : "#ff7070",
-                }}
-              >
-                {testStatus.result.valid ? (
-                  <div>
-                    <strong>✅ Key Verified &amp; Active!</strong>
-                    <div style={{ marginTop: "3px", fontSize: "11px", opacity: 0.9 }}>{testStatus.result.message}</div>
-                  </div>
-                ) : testStatus.result.rate_limited ? (
-                  <div>
-                    <strong>⚠️ Rate Limit Exceeded (HTTP 429)</strong>
-                    <div style={{ marginTop: "3px", fontSize: "11px" }}>
-                      This key has reached its free request quota. Tip: Get a free Groq key from{" "}
-                      <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer" style={{ textDecoration: "underline", color: "inherit", fontWeight: 700 }}>
-                        console.groq.com/keys
-                      </a>{" "}
-                      for instant 14,400 daily requests.
+                  <div style={{ display: "flex", alignItems: "center", gap: "14px", flex: 1 }}>
+                    <div
+                      style={{
+                        display: "grid",
+                        width: "38px",
+                        height: "38px",
+                        placeItems: "center",
+                        borderRadius: "8px",
+                        background: "rgba(122, 255, 135, 0.12)",
+                        color: "var(--accent-lime)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <BookOpen size={18} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: "15px", fontWeight: 700, margin: 0, color: "var(--paper)" }}>
+                        {mat.title}
+                      </h3>
+                      <div style={{ fontSize: "12px", color: "var(--mist)", marginTop: "2px" }}>
+                        {mat.fileName || "Course Document"} &bull; Ready for active recall evaluation
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <div>
-                    <strong>❌ Connection Failed:</strong> {testStatus.result.error}
+
+                  {/* Clean row actions: secondary button for repeated row items */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void generateFromMaterial(mat.id)}
+                      loading={busyState === mat.id}
+                      icon={<Award size={14} color="var(--gold)" />}
+                    >
+                      Generate Quiz
+                    </Button>
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      onClick={() => setDeleteTarget({ type: "material", id: mat.id, title: mat.title })}
+                      aria-label={`Delete ${mat.title}`}
+                      style={{ width: "36px", height: "36px" }}
+                    >
+                      <Trash2 size={15} color="var(--mist)" />
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "0 0 18px", fontSize: "12px", color: "var(--mist)", flexWrap: "wrap", gap: "8px" }}>
-              <span>
-                Free keys:{" "}
-                <a
-                  href="https://console.groq.com/keys"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: "var(--mint)", textDecoration: "underline", marginRight: "10px" }}
-                >
-                  Groq (Instant)
-                </a>
-                <a
-                  href="https://openrouter.ai/keys"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ color: "var(--blue)", textDecoration: "underline" }}
-                >
-                  OpenRouter
-                </a>
-              </span>
-              <button
-                type="button"
-                onClick={handleTestKey}
-                disabled={testStatus.testing}
-                style={{
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid var(--line-bright)",
-                  color: "var(--paper)",
-                  padding: "5px 11px",
-                  borderRadius: "7px",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                🧪 Test &amp; Verify Key
-              </button>
+                </article>
+              ))}
             </div>
+          )}
+        </section>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              {openRouterKey && (
-                <button
-                  type="button"
-                  className="button quiet"
-                  onClick={() => {
-                    setKeyInput("");
-                    localStorage.removeItem("openrouter_api_key");
-                    setOpenRouterKey("");
-                    setTestStatus({ testing: false });
-                    setShowKeyModal(false);
+        {/* Section 3: Saved Quizzes History */}
+        <section>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "16px" }}>
+            <div>
+              <p className="eyebrow">Practice Vault</p>
+              <h2 className="section-heading" style={{ fontSize: "20px", margin: 0 }}>
+                Saved Quizzes ({quizzes.length})
+              </h2>
+            </div>
+            <span style={{ fontSize: "12px", color: "var(--mist)" }}>
+              Take, review, and reinforce your knowledge
+            </span>
+          </div>
+
+          {loading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <Skeleton height="68px" />
+              <Skeleton height="68px" />
+            </div>
+          ) : quizzes.length === 0 ? (
+            <EmptyState
+              icon={Award}
+              title="No quizzes generated yet"
+              description="Generate your first quiz above by entering a topic or selecting an uploaded note."
+            />
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "14px" }}>
+              {quizzes.map((quiz) => (
+                <div
+                  key={quiz.id}
+                  className="glass-card"
+                  style={{
+                    padding: "18px 20px",
+                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    minHeight: "140px",
                   }}
-                  style={{ fontSize: "12px" }}
                 >
-                  Clear Key
-                </button>
-              )}
-              <button
-                type="button"
-                className="button primary"
-                onClick={saveOpenRouterKey}
-                style={{ fontSize: "12px" }}
-              >
-                Save &amp; Connect Key
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "8px" }}>
+                      <span className="badge badge-neutral">
+                        <Calendar size={11} /> {new Date(quiz.createdAt).toLocaleDateString()}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-icon"
+                        onClick={() => setDeleteTarget({ type: "quiz", id: quiz.id, title: quiz.title })}
+                        aria-label={`Delete ${quiz.title}`}
+                        style={{ width: "28px", height: "28px" }}
+                      >
+                        <Trash2 size={13} color="var(--mist)" />
+                      </button>
+                    </div>
 
-      {/* Modern Confirmation Modal for Delete (Never blocked by browser popup settings) */}
-      {deleteTarget && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.8)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10000,
-            padding: "16px",
-          }}
-          onClick={() => !busy && setDeleteTarget(null)}
-        >
-          <div
-            style={{
-              background: "#101614",
-              border: "1px solid rgba(239, 68, 68, 0.4)",
-              borderRadius: "18px",
-              width: "100%",
-              maxWidth: "460px",
-              padding: "26px",
-              boxShadow: "0 24px 48px rgba(0, 0, 0, 0.7)",
-              color: "#e2e8f0",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" }}>
-              <div
-                style={{
-                  width: "46px",
-                  height: "46px",
-                  borderRadius: "12px",
-                  background: "rgba(239, 68, 68, 0.15)",
-                  border: "1px solid rgba(239, 68, 68, 0.35)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "22px",
-                  flexShrink: 0,
-                }}
-              >
-                🗑️
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#fff" }}>
-                  {deleteTarget.type === "material" ? "Delete Study Note?" : "Delete Quiz?"}
-                </h3>
-                <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "#94a3b8" }}>
-                  Permanent action — cannot be undone.
-                </p>
-              </div>
-            </div>
+                    <h3 style={{ fontSize: "16px", fontWeight: 700, margin: "0 0 6px", color: "var(--paper)" }}>
+                      {quiz.title}
+                    </h3>
+                  </div>
 
-            <p style={{ fontSize: "0.95rem", lineHeight: 1.5, color: "#cbd5e1", margin: "16px 0 24px" }}>
-              Are you sure you want to delete <strong style={{ color: "#fff" }}>&ldquo;{deleteTarget.title}&rdquo;</strong>?
-              {deleteTarget.type === "material"
-                ? " All associated practice quizzes, attempts, and flashcards derived from this note will also be permanently removed."
-                : " All associated attempts, scores, and analytics for this quiz will also be permanently removed."}
-            </p>
-
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                className="button quiet"
-                onClick={() => setDeleteTarget(null)}
-                disabled={Boolean(busy)}
-                style={{ padding: "10px 18px", borderRadius: "10px", fontSize: "0.9rem" }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (deleteTarget.type === "material") {
-                    void deleteMaterial(deleteTarget.id);
-                  } else {
-                    void deleteQuiz(deleteTarget.id);
-                  }
-                }}
-                disabled={Boolean(busy)}
-                style={{
-                  padding: "10px 22px",
-                  borderRadius: "10px",
-                  fontSize: "0.9rem",
-                  fontWeight: 700,
-                  background: "#ef4444",
-                  border: "none",
-                  color: "#fff",
-                  cursor: busy ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 14px rgba(239, 68, 68, 0.4)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                {busy ? "Deleting..." : "Yes, Delete"}
-              </button>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", paddingTop: "12px", borderTop: "1px solid var(--line)" }}>
+                    <span style={{ fontSize: "12px", color: "var(--mist)" }}>Active Recall Round</span>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      href={`/quizzes/${quiz.id}`}
+                      icon={<Play size={13} />}
+                    >
+                      Start Quiz
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
-      )}
-    </main>
-    </>
+          )}
+        </section>
+      </main>
+
+      {/* Confirmation Dialog for Destructive Delete */}
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title={deleteTarget?.type === "material" ? "Delete Study Note?" : "Delete Quiz?"}
+        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action cannot be undone.`}
+        confirmLabel="Confirm Delete"
+        danger={true}
+        loading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </div>
   );
 }

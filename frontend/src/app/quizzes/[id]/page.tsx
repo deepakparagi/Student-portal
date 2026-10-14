@@ -16,9 +16,11 @@ import {
   HelpCircle,
   Check,
   Clock,
+  Trash2,
 } from "lucide-react";
 import { demoQuizResult, demoQuizzes } from "../../demo-data";
 import { Navbar } from "../../navbar";
+import { PageHeader, Button, ConfirmDialog } from "@/components/ui";
 
 type Question = {
   question: string;
@@ -184,114 +186,30 @@ export default function QuizDetail() {
   const progressPercent = totalCount > 0 ? Math.round((answeredCount / totalCount) * 100) : 0;
 
   return (
-    <>
-      <Navbar
-        customRightAction={
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <button
-              type="button"
-              className="button quiet"
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <Navbar />
+
+      <main id="main-content" className="app-container page-wrapper" style={{ flex: 1 }}>
+        <PageHeader
+          backHref="/quizzes"
+          backLabel="All Quizzes"
+          eyebrow="Active Recall Assessment"
+          eyebrowIcon={<Sparkles size={13} color="var(--accent-lime)" />}
+          title={quiz?.title ?? "Practice Quiz Round"}
+          description="Select the most accurate option for each question. Detailed conceptual rationale and source references are revealed upon evaluation."
+          actions={
+            <Button
+              variant="danger"
+              size="sm"
               onClick={() => setShowDeleteModal(true)}
               disabled={busy}
-              style={{
-                padding: "6px 12px",
-                fontSize: "12px",
-                color: "#ff7070",
-                borderColor: "rgba(255, 112, 112, 0.35)",
-                background: "rgba(255, 70, 70, 0.1)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "4px",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
-              title="Delete this quiz"
+              icon={<Trash2 size={14} />}
             >
-              🗑️ Delete quiz
-            </button>
-            <Link
-              className="back-link"
-              href="/quizzes"
-              style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-            >
-              <ArrowLeft size={13} /> Back to quizzes
-            </Link>
-          </div>
-        }
-      />
-      <main className="task-page" style={{ maxWidth: "1000px", margin: "0 auto", padding: "28px 20px 80px" }}>
+              Delete Quiz
+            </Button>
+          }
+        />
 
-      {/* Main Content */}
-      <section className="task-content" style={{ padding: 0 }}>
-        {demoMode && (
-          <div
-            className="demo-banner"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              padding: "10px 16px",
-              borderRadius: "10px",
-              background: "rgba(196, 255, 106, 0.08)",
-              border: "1px solid rgba(196, 255, 106, 0.25)",
-              color: "var(--paper)",
-              fontSize: "12px",
-              marginBottom: "24px",
-            }}
-          >
-            <strong style={{ color: "var(--lime)", fontSize: "11px", letterSpacing: "0.1em" }}>PREVIEW MODE</strong>
-            <span style={{ color: "var(--mist)" }}>Sample interactive quiz round. Scores and explanations are calculated locally.</span>
-          </div>
-        )}
-
-        {/* Title & Metadata Banner */}
-        <div style={{ marginBottom: "28px" }}>
-          <p className="eyebrow" style={{ color: "var(--mint)", marginBottom: "6px" }}>
-            <Sparkles size={13} style={{ display: "inline", marginRight: "6px" }} />
-            Active Recall &amp; Assessment
-          </p>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
-            <div>
-              <h1
-                style={{
-                  fontSize: "34px",
-                  fontWeight: 800,
-                  letterSpacing: "-0.03em",
-                  margin: "6px 0 10px",
-                  color: "var(--paper)",
-                }}
-              >
-                {quiz?.title ?? "Loading practice quiz..."}
-              </h1>
-              <p style={{ color: "var(--mist)", fontSize: "14px", margin: 0, maxWidth: "680px", lineHeight: 1.6 }}>
-                Select the best option for each question. AI-powered evaluation provides instant accuracy grading and detailed concept explanations.
-              </p>
-            </div>
-            <button
-              id="delete-current-quiz-btn"
-              type="button"
-              className="button quiet"
-              onClick={handleDeleteThisQuiz}
-              disabled={busy}
-              style={{
-                padding: "8px 14px",
-                fontSize: "12px",
-                color: "#ff7070",
-                borderColor: "rgba(255, 112, 112, 0.35)",
-                background: "rgba(255, 70, 70, 0.08)",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                borderRadius: "9px",
-                cursor: "pointer",
-                marginTop: "6px",
-              }}
-              title="Delete this quiz and return to quizzes list"
-            >
-              🗑️ Delete Quiz
-            </button>
-          </div>
-        </div>
 
         {error && <p className="form-error" role="alert" style={{ marginBottom: "24px" }}>{error}</p>}
 
@@ -333,7 +251,7 @@ export default function QuizDetail() {
                     ? "🌟 Outstanding Mastery! You have strong conceptual grasp."
                     : result.accuracyPercent >= 50
                     ? "👍 Solid Performance! Review incorrect items below to cement recall."
-                    : "📖 Revision Needed! Check the explanations below and try flashcards."}
+                    : "📖 Revision Needed! Check the explanations below to review concepts."}
                 </p>
                 {result.notice && <p style={{ fontSize: "11px", color: "var(--mist)", margin: "4px 0 0" }}>{result.notice}</p>}
               </div>
@@ -374,11 +292,11 @@ export default function QuizDetail() {
                 <RotateCw size={15} /> Retake Quiz
               </button>
               <Link
-                href="/flashcards"
+                href="/ai-tutor"
                 className="button quiet"
                 style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
               >
-                <Layers size={15} /> Study Topic Flashcards
+                <Sparkles size={15} /> Ask AI Tutor
               </Link>
               <Link
                 href="/quizzes"
@@ -775,105 +693,20 @@ export default function QuizDetail() {
             )}
           </section>
         )}
-      </section>
+      </main>
 
-      {/* Confirmation Modal for Quiz Delete */}
-      {showDeleteModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.8)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10000,
-            padding: "16px",
-          }}
-          onClick={() => !busy && setShowDeleteModal(false)}
-        >
-          <div
-            style={{
-              background: "#101614",
-              border: "1px solid rgba(239, 68, 68, 0.4)",
-              borderRadius: "18px",
-              width: "100%",
-              maxWidth: "460px",
-              padding: "26px",
-              boxShadow: "0 24px 48px rgba(0, 0, 0, 0.7)",
-              color: "#e2e8f0",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" }}>
-              <div
-                style={{
-                  width: "46px",
-                  height: "46px",
-                  borderRadius: "12px",
-                  background: "rgba(239, 68, 68, 0.15)",
-                  border: "1px solid rgba(239, 68, 68, 0.35)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "22px",
-                  flexShrink: 0,
-                }}
-              >
-                🗑️
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: "#fff" }}>
-                  Delete This Quiz?
-                </h3>
-                <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "#94a3b8" }}>
-                  Permanent action — cannot be undone.
-                </p>
-              </div>
-            </div>
-
-            <p style={{ fontSize: "0.95rem", lineHeight: 1.5, color: "#cbd5e1", margin: "16px 0 24px" }}>
-              Are you sure you want to delete <strong style={{ color: "#fff" }}>&ldquo;{quiz?.title || "this quiz"}&rdquo;</strong>?
-              All associated question sets, attempts, scores, and mastery stats will be permanently removed.
-            </p>
-
-            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                className="button quiet"
-                onClick={() => setShowDeleteModal(false)}
-                disabled={busy}
-                style={{ padding: "10px 18px", borderRadius: "10px", fontSize: "0.9rem" }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleDeleteThisQuiz()}
-                disabled={busy}
-                style={{
-                  padding: "10px 22px",
-                  borderRadius: "10px",
-                  fontSize: "0.9rem",
-                  fontWeight: 700,
-                  background: "#ef4444",
-                  border: "none",
-                  color: "#fff",
-                  cursor: busy ? "not-allowed" : "pointer",
-                  boxShadow: "0 4px 14px rgba(239, 68, 68, 0.4)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                {busy ? "Deleting..." : "Yes, Delete Quiz"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </main>
-    </>
+      {/* Accessible Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteModal}
+        title="Delete This Practice Quiz?"
+        description={`Are you sure you want to delete "${quiz?.title || "this quiz"}"? All associated question sets, attempts, scores, and mastery stats will be permanently removed.`}
+        confirmLabel="Yes, Delete Quiz"
+        cancelLabel="Keep Quiz"
+        danger={true}
+        loading={busy}
+        onConfirm={handleDeleteThisQuiz}
+        onCancel={() => setShowDeleteModal(false)}
+      />
+    </div>
   );
 }
