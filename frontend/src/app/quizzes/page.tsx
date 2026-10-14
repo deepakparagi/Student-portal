@@ -20,6 +20,7 @@ import {
   Layers,
   HelpCircle,
   Loader2,
+  BookOpen,
 } from "lucide-react";
 import { Navbar } from "../navbar";
 import {
