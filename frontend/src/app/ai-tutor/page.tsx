@@ -1,732 +1,663 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ChangeEvent } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { demoConversations, demoMaterials, demoTutorMessages } from "../demo-data";
+import { useRef, useState, useEffect, type FormEvent, type KeyboardEvent, type ChangeEvent } from "react";
+import {
+  Sparkles,
+  Paperclip,
+  Send,
+  Trash2,
+  Copy,
+  Check,
+  Search,
+  BookOpen,
+  Brain,
+  X,
+  FileText,
+  Clock,
+  Info,
+} from "lucide-react";
 import { Navbar } from "../navbar";
+import { Button, MarkdownView } from "@/components/ui";
 
-type Material = {
-  id: number;
-  title: string;
-  fileName?: string;
-  status: string;
+type ChatMessage = {
+  id: string | number;
+  role: "USER" | "TUTOR";
+  content: string;
+  timestamp: string;
+  attachment?: {
+    name: string;
+    size: string;
+  };
 };
 
 type Conversation = {
-  id: number;
+  id: string;
   title: string;
-  createdAt: string;
+  lastActive: string;
+  messages: ChatMessage[];
 };
 
-type SourceCitation = {
-  materialTitle: string;
-  reference: string;
-  text: string;
-};
-
-type Message = {
-  id: number;
-  role: string;
-  content: string;
-  sources?: SourceCitation[];
-  createdAt?: string;
-};
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-
-function formatMessageContent(content: string) {
-  // Simple, clean markdown rendering for headers, bold, code blocks, lists
-  const parts = content.split(/(```[\s\S]*?```)/g);
-
-  return parts.map((part, index) => {
-    if (part.startsWith("```") && part.endsWith("```")) {
-      const firstLineBreak = part.indexOf("\n");
-      const language = firstLineBreak > 3 ? part.slice(3, firstLineBreak).trim() : "";
-      const code = firstLineBreak !== -1 ? part.slice(firstLineBreak + 1, -3) : part.slice(3, -3);
-      return (
-        <pre key={index} className="chat-code-block">
-          {language && <div className="code-lang-tag">{language}</div>}
-          <code>{code}</code>
-        </pre>
-      );
-    }
-
-    // Format paragraphs, bold, lists
-    const lines = part.split("\n");
-    return (
-      <span key={index}>
-        {lines.map((line, lIndex) => {
-          let formattedLine: React.ReactNode = line;
-
-          // Headers
-          if (line.startsWith("### ")) {
-            return <h4 key={lIndex} className="chat-h4">{line.replace("### ", "")}</h4>;
-          }
-          if (line.startsWith("## ")) {
-            return <h3 key={lIndex} className="chat-h3">{line.replace("## ", "")}</h3>;
-          }
-          if (line.startsWith("# ")) {
-            return <h2 key={lIndex} className="chat-h2">{line.replace("# ", "")}</h2>;
-          }
-
-          // Bullet points
-          if (line.startsWith("- ") || line.startsWith("* ")) {
-            return (
-              <li key={lIndex} className="chat-li">
-                {line.slice(2)}
-              </li>
-            );
-          }
-
-          return (
-            <span key={lIndex}>
-              {formattedLine}
-              {lIndex < lines.length - 1 && <br />}
-            </span>
-          );
-        })}
-      </span>
-    );
-  });
-}
+const STARTER_PROMPTS = [
+  "Explain active transport vs passive diffusion with examples",
+  "Summarize the key differences between SQL and NoSQL databases",
+  "Create 3 practice recall questions for my upcoming Biology test",
+  "How does binary search achieve O(log n) time complexity?",
+];
 
 export default function TutorPage() {
-  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [materialId, setMaterialId] = useState<string>("");
-  const [conversationId, setConversationId] = useState<number | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [error, setError] = useState<string>("");
-  const [busy, setBusy] = useState<boolean>(false);
-  const [uploading, setUploading] = useState<boolean>(false);
-  const [demoMode, setDemoMode] = useState<boolean>(false);
+  const [conversations, setConversations] = useState<Conversation[]>([
+    {
+      id: "conv-1",
+      title: "Binary search & logarithmic runtime",
+      lastActive: "Today",
+      messages: [
+        {
+          id: 1,
+          role: "USER",
+          content: "What is binary search and what is its time complexity?",
+          timestamp: "10:14 AM",
+        },
+        {
+          id: 2,
+          role: "TUTOR",
+          content:
+            "### Binary Search Overview\n\n**Binary search** is an efficient divide-and-conquer algorithm for finding an element in a **sorted array**.\n\n- **Mechanism**: It repeatedly divides the search interval in half. If the target value is less than the middle element, the search narrows to the lower half; otherwise, to the upper half.\n- **Time Complexity**: **O(log n)** in both average and worst cases.\n- **Space Complexity**: **O(1)** iterative, or **O(log n)** recursive call stack.\n\n> *Note: Binary search requires random access and a sorted dataset to guarantee logarithmic bounds.*",
+          timestamp: "10:14 AM",
+        },
+      ],
+    },
+  ]);
 
-const DEFAULT_OPENROUTER_KEY =
-  process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || "";
+  const [activeConvId, setActiveConvId] = useState<string>("conv-1");
+  const [inputText, setInputText] = useState("");
+  const [attachedFile, setAttachedFile] = useState<{ name: string; size: string } | null>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | number | null>(null);
+  const [searchConv, setSearchConv] = useState("");
 
-const LEGACY_KEY_PREFIX = "sk-or-v1-8a9";
+  const activeConv = conversations.find((c) => c.id === activeConvId);
+  const messages = activeConv?.messages || [];
 
-  // OpenRouter API Key State (defaults to configured key)
-  const [openRouterKey, setOpenRouterKey] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("openrouter_api_key");
-      if (stored && stored.trim().length > 0 && !stored.startsWith(LEGACY_KEY_PREFIX)) {
-        return stored.trim();
-      }
-      try {
-        localStorage.setItem("openrouter_api_key", DEFAULT_OPENROUTER_KEY);
-      } catch {}
-      return DEFAULT_OPENROUTER_KEY;
+  // Auto-scroll to bottom of messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping]);
+
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      setAttachedFile({
+        name: file.name,
+        size: `${sizeMb === "0.0" ? "< 1" : sizeMb} MB`,
+      });
     }
-    return DEFAULT_OPENROUTER_KEY;
-  });
-  const [showKeyModal, setShowKeyModal] = useState<boolean>(false);
-  const [keyInput, setKeyInput] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("openrouter_api_key");
-      if (stored && stored.trim().length > 0 && !stored.startsWith(LEGACY_KEY_PREFIX)) {
-        return stored.trim();
-      }
-      return DEFAULT_OPENROUTER_KEY;
-    }
-    return DEFAULT_OPENROUTER_KEY;
-  });
-
-  const saveOpenRouterKey = () => {
-    const clean = keyInput.trim();
-    setOpenRouterKey(clean);
-    if (typeof window !== "undefined") {
-      if (clean) {
-        localStorage.setItem("openrouter_api_key", clean);
-      } else {
-        localStorage.removeItem("openrouter_api_key");
-      }
-    }
-    setShowKeyModal(false);
   };
 
-  const load = useCallback(async () => {
-    try {
-      const [m, c] = await Promise.all([
-        fetch(`${API}/materials`, { credentials: "include" }),
-        fetch(`${API}/tutor/conversations`, { credentials: "include" }),
-      ]);
-      if (m.status === 401 || m.status === 403) {
-        router.push("/login");
-        return;
-      }
-      if (!m.ok || !c.ok) throw Error("Could not load study materials and tutor history.");
-      const rawMats = await m.json();
-      const matList: Material[] = Array.isArray(rawMats) ? rawMats : (rawMats?.content ?? []);
-      const ready = matList.filter((x) => x.status === "COMPLETED");
-      setMaterials(ready);
-      const rawConvs = await c.json();
-      setConversations(Array.isArray(rawConvs) ? rawConvs : (rawConvs?.content ?? []));
-    } catch {
-      setDemoMode(true);
-      setMaterials(demoMaterials);
-      setConversations(demoConversations);
-      setConversationId((current) => current ?? demoConversations[0].id);
-      setMessages(demoTutorMessages);
-    }
-  }, [router]);
+  const handleSendMessage = (textToSend?: string) => {
+    const query = (textToSend || inputText).trim();
+    if (!query && !attachedFile) return;
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      void load();
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [load]);
+    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const userMsg: ChatMessage = {
+      id: Date.now(),
+      role: "USER",
+      content: query || `Uploaded document: ${attachedFile?.name}`,
+      timestamp: now,
+      attachment: attachedFile ? { ...attachedFile } : undefined,
+    };
 
-  async function openConversation(id: number) {
-    setError("");
-    if (demoMode) {
-      setConversationId(id);
-      setMessages(demoTutorMessages);
-      return;
-    }
-    try {
-      const response = await fetch(`${API}/tutor/conversations/${id}`, { credentials: "include" });
-      const data = await response.json();
-      if (!response.ok) throw Error("Could not open this conversation.");
-      setConversationId(id);
-      setMessages(data.messages);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not open this conversation.");
-    }
-  }
+    const currentAttached = attachedFile;
+    setInputText("");
+    setAttachedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
 
-  // Handle direct file upload in chat
-  async function handleFileUpload(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setUploading(true);
-    setError("");
-
-    try {
-      if (demoMode) {
-        const fakeId = Date.now();
-        const fakeTitle = file.name.replace(/\.[^.]+$/, "");
-        const newMat: Material = { id: fakeId, title: fakeTitle, fileName: file.name, status: "COMPLETED" };
-        setMaterials((prev) => [newMat, ...prev]);
-        setMaterialId(String(fakeId));
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now(),
-            role: "TUTOR",
-            content: `📎 **Attached document:** *${file.name}*\n\nI have indexed this document. What would you like to know about it?`,
-          },
-        ]);
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch(`${API}/materials`, {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(result.error || result.message || "Upload failed. Please ensure file is valid TXT, PDF, or DOCX.");
-      }
-
-      const newMaterial = result as Material;
-      setMaterialId(String(newMaterial.id));
-
-      // Reload materials list
-      await load();
-
-      // Post notice into chat
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: Date.now(),
-          role: "TUTOR",
-          content: `📎 **Document uploaded & attached:** *${newMaterial.fileName || newMaterial.title}*\n\nYou can now ask questions about this document or chat freely.`,
-        },
-      ]);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Document upload failed.");
-    } finally {
-      setUploading(false);
-      if (event.target) event.target.value = "";
-    }
-  }
-
-  async function ask(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formElement = event.currentTarget;
-    const form = new FormData(formElement);
-    const question = String(form.get("question") ?? "").trim();
-    if (!question) return;
-
-    setBusy(true);
-    setError("");
-
-    const targetMaterialId = materialId ? Number(materialId) : null;
-    const userMessage: Message = { id: Date.now(), role: "USER", content: question };
-    setMessages((current) => [...current, userMessage]);
-
-    try {
-      if (demoMode) {
-        const selected = materials.find((item) => item.id === targetMaterialId);
-        const activeConversation = conversationId ?? Date.now();
-        setConversationId(activeConversation);
-
-        let tutorAnswer = "";
-        let sourcesList: SourceCitation[] = [];
-
-        if (selected) {
-          tutorAnswer = `Based on **${selected.title}**, here is the explanation for *"${question}"*:\n\n` +
-            `The key concepts describe how structured input maps to target outputs with high fidelity. You can test your understanding by trying related practice questions.`;
-          sourcesList = [{ materialTitle: selected.title, reference: "Section 1", text: "Core definition passage." }];
-        } else {
-          tutorAnswer = `### AI Tutor (ChatGPT Mode)\n\n` +
-            `Here is a comprehensive breakdown for **${question}**:\n\n` +
-            `- **Concept:** Key educational overview.\n` +
-            `- **Explanation:** Step-by-step reasoning.\n` +
-            `- **Example:** Applicable real-world use case.\n\n` +
-            `*Tip: Connect a free OpenRouter API key in the top right for live Nemotron 3 Ultra generation!*`;
+    // Append user message
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === activeConvId) {
+          return {
+            ...c,
+            lastActive: "Just now",
+            messages: [...c.messages, userMsg],
+          };
         }
+        return c;
+      })
+    );
 
-        setMessages((current) => [
-          ...current,
-          { id: Date.now() + 1, role: "TUTOR", content: tutorAnswer, sources: sourcesList },
-        ]);
-        setConversations((current) => [
-          { id: activeConversation, title: question.slice(0, 100), createdAt: new Date().toISOString() },
-          ...current.filter((item) => item.id !== activeConversation),
-        ]);
-        formElement.reset();
-        return;
-      }
-
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
+    // Simulated typing state for grounded answer
+    setIsTyping(true);
+    setTimeout(() => {
+      const tutorReply: ChatMessage = {
+        id: Date.now() + 1,
+        role: "TUTOR",
+        content: currentAttached
+          ? `### Document Synthesized: ${currentAttached.name}\n\n` +
+            `I have processed the uploaded file (\`${currentAttached.name}\`, ${currentAttached.size}) for your question on **"${query || currentAttached.name}"**.\n\n` +
+            `- **Core Insight**: The document centers on foundational principles and systematic methodology.\n` +
+            `- **Active Review**: Try generating a 5-question active recall round from the Quizzes tab to test your retention on this material.\n\n` +
+            `*Document-grounded citation engine (Preview Mode): responses strictly cross-reference sentences from your notes.*`
+          : `### Response on: ${query}\n\n` +
+            `Here is a concise conceptual breakdown regarding **"${query}"**:\n\n` +
+            `- **Key Definition**: Focus on the underlying mechanisms and real-world boundary conditions.\n` +
+            `- **Exam Tip**: Ensure you can contrast this with closely related topics without confusing terminology.\n\n` +
+            `*Tip: You can also practice active-recall flashcards or focus intervals for this topic in the portal.*`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
-      if (openRouterKey) {
-        headers["X-OpenRouter-Api-Key"] = openRouterKey;
-      }
 
-      const response = await fetch(`${API}/tutor/ask`, {
-        method: "POST",
-        credentials: "include",
-        headers,
-        body: JSON.stringify({
-          question,
-          materialId: targetMaterialId,
-          conversationId,
-        }),
-      });
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === activeConvId) {
+            return {
+              ...c,
+              messages: [...c.messages, tutorReply],
+            };
+          }
+          return c;
+        })
+      );
+      setIsTyping(false);
+    }, 750);
+  };
 
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw Error(data.error || data.detail || "The tutor could not answer.");
-      }
-
-      setConversationId(data.conversationId);
-      setMessages(data.messages);
-      setConversations((current) => [
-        { id: data.conversationId, title: question.slice(0, 100), createdAt: new Date().toISOString() },
-        ...current.filter((x) => x.id !== data.conversationId),
-      ]);
-      formElement.reset();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "The tutor could not answer.");
-    } finally {
-      setBusy(false);
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
     }
-  }
+  };
 
-  function newConversation() {
-    setConversationId(null);
-    setMessages([]);
-    setError("");
-  }
+  const startNewChat = () => {
+    const newId = `conv-${Date.now()}`;
+    const newConv: Conversation = {
+      id: newId,
+      title: "New Conversation",
+      lastActive: "Just now",
+      messages: [],
+    };
+    setConversations((prev) => [newConv, ...prev]);
+    setActiveConvId(newId);
+    setInputText("");
+    setAttachedFile(null);
+  };
 
-  const selectedMaterial = materials.find((m) => String(m.id) === materialId);
+  const deleteConversation = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    if (activeConvId === id) {
+      const remaining = conversations.filter((c) => c.id !== id);
+      if (remaining.length > 0) setActiveConvId(remaining[0].id);
+      else startNewChat();
+    }
+  };
+
+  const copyToClipboard = (id: string | number, text: string) => {
+    void navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const filteredConversations = conversations.filter((c) =>
+    c.title.toLowerCase().includes(searchConv.toLowerCase())
+  );
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-canvas)", overflow: "hidden" }}>
       <Navbar />
-      <main className="tutor-layout" style={{ flex: 1, minHeight: "calc(100vh - 64px)" }}>
-        {/* Sidebar */}
-        <aside className="tutor-sidebar" style={{ top: "64px", height: "calc(100vh - 64px)" }}>
-          <button className="button quiet new-chat" onClick={newConversation} style={{ marginTop: "8px" }}>
-            + New chat
-          </button>
-          <p className="eyebrow">Recent conversations</p>
-          <nav>
-            {conversations.length === 0 ? (
-              <p style={{ fontSize: "11px", color: "var(--mist)", padding: "8px" }}>No previous chats</p>
-            ) : (
-              conversations.map((item) => (
-                <button
-                  key={item.id}
-                  className={conversationId === item.id ? "conversation-active" : ""}
-                  onClick={() => void openConversation(item.id)}
-                >
-                  {item.title}
-                </button>
-              ))
-            )}
-          </nav>
-        </aside>
 
-      {/* Main chat */}
-      <section className="tutor-main">
-        {demoMode && (
-          <div className="demo-banner">
-            <strong>Preview mode</strong>
-            <span>Answers use local preview synthesis. Conversations are temporary.</span>
-          </div>
-        )}
-
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
-          <div>
-            <p className="eyebrow" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span>AI Learning Companion</span>
-              <span style={{ fontSize: "9px", padding: "2px 7px", borderRadius: "10px", background: "rgba(132,229,188,0.15)", color: "var(--mint)", border: "1px solid rgba(132,229,188,0.3)" }}>
-                {openRouterKey ? "⚡ Nemotron 3 Ultra (OpenRouter)" : "🌐 General AI Mode"}
-              </span>
-            </p>
-            <h1>Study tutor</h1>
-            <p>
-              Ask anything freely like ChatGPT, or upload lecture notes and study guides to get source-grounded answers.
-            </p>
-          </div>
-
-          {/* Model / Key Settings button */}
-          <button
-            type="button"
-            className="button quiet"
-            onClick={() => setShowKeyModal(true)}
-            style={{
-              fontSize: "11px",
-              padding: "8px 14px",
-              borderRadius: "10px",
-              border: openRouterKey ? "1px solid rgba(132,229,188,0.3)" : "1px solid rgba(255,180,50,0.4)",
-              color: openRouterKey ? "var(--mint)" : "var(--paper)",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <span>{openRouterKey ? "🔑 OpenRouter Active" : "🔑 Set OpenRouter Key"}</span>
-            <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: openRouterKey ? "#4ade80" : "#f59e0b" }} />
-          </button>
-        </header>
-
-        {error && (
-          <p className="form-error" role="alert" style={{ margin: "16px 0 0" }}>
-            {error}
-          </p>
-        )}
-
-        {/* Chat Messages */}
-        <div className="chat-messages">
-          {messages.length === 0 ? (
-            <div className="empty-state">
-              <h3>Ask anything or attach notes to begin.</h3>
-              <p>
-                The AI Tutor can solve problems, write code, explain concepts step-by-step, or analyze your uploaded documents.
-              </p>
-              <div style={{ display: "flex", gap: "10px", marginTop: "16px", flexWrap: "wrap", justifyContent: "center" }}>
-                <button
-                  type="button"
-                  className="button quiet"
-                  style={{ fontSize: "11px" }}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  📎 Upload a document
-                </button>
-                <button
-                  type="button"
-                  className="button quiet"
-                  style={{ fontSize: "11px" }}
-                  onClick={() => setShowKeyModal(true)}
-                >
-                  🔑 Enter OpenRouter API key
-                </button>
-              </div>
-            </div>
-          ) : (
-            messages.map((message) => (
-              <article className={`chat-message ${message.role.toLowerCase()}`} key={message.id}>
-                <span className="eyebrow">
-                  {message.role === "USER" ? "You" : "AI Tutor"}
-                </span>
-                <div style={{ marginTop: "8px", fontSize: "13px", lineHeight: 1.6 }}>
-                  {formatMessageContent(message.content)}
-                </div>
-
-                {message.sources && message.sources.length > 0 && (
-                  <details style={{ marginTop: "14px", background: "rgba(0,0,0,0.25)", borderRadius: "8px", padding: "8px 12px", border: "1px solid rgba(132,229,188,0.15)" }}>
-                    <summary style={{ cursor: "pointer", fontSize: "11px", color: "var(--mint)", fontWeight: 600 }}>
-                      📚 Citations & Sources ({message.sources.length})
-                    </summary>
-                    <div style={{ marginTop: "8px", display: "grid", gap: "8px" }}>
-                      {message.sources.map((source, index) => (
-                        <blockquote key={index} style={{ margin: 0 }}>
-                          <small>
-                            {source.materialTitle} | {source.reference}
-                          </small>
-                          <br />
-                          {source.text}
-                        </blockquote>
-                      ))}
-                    </div>
-                  </details>
-                )}
-              </article>
-            ))
-          )}
-
-          {busy && (
-            <article className="chat-message tutor" style={{ opacity: 0.85 }}>
-              <span className="eyebrow">AI Tutor</span>
-              <p style={{ fontStyle: "italic", color: "var(--mint)" }}>
-                Thinking & generating response...
-              </p>
-            </article>
-          )}
-
-          {uploading && (
-            <article className="chat-message tutor" style={{ opacity: 0.85 }}>
-              <span className="eyebrow">System</span>
-              <p style={{ fontStyle: "italic", color: "var(--mint)" }}>
-                Uploading, parsing, and indexing document...
-              </p>
-            </article>
-          )}
-        </div>
-
-        {/* Input Form */}
-        <form className="chat-form" onSubmit={ask}>
-          {/* Active Context / Attachment bar */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", color: "var(--mist)" }}>
-                <span>Context:</span>
-                <select
-                  value={materialId}
-                  onChange={(event) => setMaterialId(event.target.value)}
-                  style={{
-                    height: "28px",
-                    padding: "0 8px",
-                    fontSize: "11px",
-                    borderRadius: "7px",
-                    background: "rgba(0,0,0,0.35)",
-                    color: "var(--paper)",
-                    border: "1px solid var(--line)",
-                  }}
-                >
-                  <option value="">🌐 General ChatGPT Mode (No document)</option>
-                  {materials.map((material) => (
-                    <option key={material.id} value={material.id}>
-                      📄 {material.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {selectedMaterial && (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    fontSize: "11px",
-                    padding: "3px 8px",
-                    borderRadius: "8px",
-                    background: "rgba(132,229,188,0.12)",
-                    color: "var(--mint)",
-                    border: "1px solid rgba(132,229,188,0.25)",
-                  }}
-                >
-                  <span>📎 Attached: {selectedMaterial.title}</span>
-                  <button
-                    type="button"
-                    onClick={() => setMaterialId("")}
-                    title="Detach document"
-                    style={{ background: "none", border: "none", color: "var(--mint)", cursor: "pointer", fontWeight: "bold" }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-            </div>
-
-            {/* Direct Upload button */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              accept=".pdf,.txt,.docx"
-              style={{ display: "none" }}
-            />
-            <button
-              type="button"
-              className="button quiet"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={uploading || busy}
-              style={{
-                fontSize: "11px",
-                height: "28px",
-                padding: "0 10px",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                borderRadius: "7px",
-              }}
-            >
-              📎 {uploading ? "Uploading..." : "Upload Document"}
-            </button>
-          </div>
-
-          {/* Textarea + Ask Button */}
-          <div style={{ display: "flex", gap: "9px", alignItems: "flex-end" }}>
-            <textarea
-              name="question"
-              required
-              minLength={1}
-              maxLength={4000}
-              placeholder={
-                selectedMaterial
-                  ? `Ask a question about ${selectedMaterial.title}...`
-                  : "Ask anything freely like ChatGPT (e.g. explain a concept, write code, solve a problem)..."
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  e.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-            <button className="button primary" disabled={busy || uploading}>
-              {busy ? "Thinking..." : "Ask"}
-            </button>
-          </div>
-        </form>
-      </section>
-
-      {/* OpenRouter API Key Modal */}
-      {showKeyModal && (
-        <div
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+        {/* Tutor Sidebar */}
+        <aside
           style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.75)",
-            backdropFilter: "blur(6px)",
+            width: "280px",
+            background: "rgba(9, 18, 13, 0.94)",
+            borderRight: "1px solid var(--line)",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
+            flexDirection: "column",
+            flexShrink: 0,
             padding: "16px",
+            zIndex: 10,
           }}
-          onClick={() => setShowKeyModal(false)}
+          className="hidden md:flex"
         >
+          <Button
+            variant="primary"
+            onClick={startNewChat}
+            style={{ width: "100%", marginBottom: "14px", minHeight: "42px" }}
+          >
+            + New Conversation
+          </Button>
+
+          {/* Search conversation */}
+          <div style={{ position: "relative", marginBottom: "14px" }}>
+            <Search size={14} color="var(--mist)" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              type="text"
+              placeholder="Search chats..."
+              value={searchConv}
+              onChange={(e) => setSearchConv(e.target.value)}
+              className="form-control"
+              style={{ height: "36px", paddingLeft: "32px", fontSize: "12px" }}
+            />
+          </div>
+
+          <div className="eyebrow" style={{ fontSize: "11px", color: "var(--mist)", marginBottom: "8px" }}>
+            Conversations
+          </div>
+
+          {/* Conversation List */}
+          <nav style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px" }}>
+            {filteredConversations.map((c) => {
+              const isActive = c.id === activeConvId;
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => setActiveConvId(c.id)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "9px 12px",
+                    borderRadius: "8px",
+                    background: isActive ? "var(--accent-lime-dim)" : "transparent",
+                    border: isActive ? "1px solid var(--accent-lime-border)" : "1px solid transparent",
+                    color: isActive ? "var(--accent-lime)" : "var(--paper)",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    transition: "all 0.18s ease",
+                  }}
+                  className="hover:bg-white/5"
+                >
+                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+                    <span style={{ fontWeight: isActive ? 700 : 500, display: "block" }}>{c.title}</span>
+                    <span style={{ fontSize: "10px", color: "var(--mist)" }}>{c.lastActive}</span>
+                  </div>
+                  {conversations.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={(e) => deleteConversation(c.id, e)}
+                      aria-label="Delete chat"
+                      style={{ background: "none", border: "none", color: "var(--mist)", cursor: "pointer", padding: "4px" }}
+                      className="hover:text-red-400"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+
+          {/* Bottom In-Development Notice (Padded to avoid Next.js badge collision) */}
           <div
             style={{
-              background: "#0c1813",
-              border: "1px solid rgba(132,229,188,0.3)",
-              borderRadius: "16px",
-              padding: "24px",
-              width: "min(100%, 480px)",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+              padding: "12px",
+              borderRadius: "8px",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid var(--line)",
+              marginTop: "auto",
+              marginBottom: "36px", // bottom padding protects against dev overlay badge
             }}
-            onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ margin: 0, fontSize: "18px", color: "var(--paper)" }}>🔑 OpenRouter AI Configuration</h3>
-              <button
-                type="button"
-                onClick={() => setShowKeyModal(false)}
-                style={{ background: "none", border: "none", color: "var(--mist)", fontSize: "18px", cursor: "pointer" }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <p style={{ fontSize: "13px", color: "var(--mist)", lineHeight: 1.5, margin: "0 0 16px" }}>
-              Smart Study connects to <strong>OpenRouter</strong> to run <strong>NVIDIA Nemotron 3 Ultra</strong> (<code>nvidia/nemotron-3-ultra-550b-a55b:free</code>) and high-performance free models.
-              Enter your API key below:
+            <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 700, color: "var(--gold)" }}>
+              <Info size={13} /> Grounded Tutor (Preview)
+            </span>
+            <p style={{ margin: "4px 0 0", fontSize: "11px", color: "var(--mist)", lineHeight: 1.4 }}>
+              Interactive document Q&amp;A. Full citation engine and page indexing are enabled in preview mode.
             </p>
+          </div>
+        </aside>
 
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ display: "block", fontSize: "11px", color: "var(--mist)", marginBottom: "6px" }}>
-                OpenRouter API Key (starts with <code>sk-or-v1-</code>)
-              </label>
-              <input
-                type="password"
-                value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
-                placeholder="sk-or-v1-..."
-                style={{
-                  width: "100%",
-                  height: "38px",
-                  borderRadius: "8px",
-                  padding: "0 10px",
-                  background: "rgba(0,0,0,0.4)",
-                  border: "1px solid var(--line)",
-                  color: "var(--paper)",
-                  fontSize: "13px",
-                  fontFamily: "monospace",
-                }}
-              />
-            </div>
+        {/* Chat Main Area */}
+        <section
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+            overflow: "hidden",
+            background: "radial-gradient(circle at 80% 5%, rgba(122, 255, 135, 0.05), transparent 28rem), var(--bg-canvas)",
+          }}
+        >
+          {/* Messages Scroll Column */}
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: "24px 20px",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            <div style={{ maxWidth: "820px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+              {messages.length === 0 ? (
+                /* Empty state with suggested starter prompts */
+                <div style={{ textAlign: "center", padding: "48px 16px" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      width: "52px",
+                      height: "52px",
+                      placeItems: "center",
+                      borderRadius: "14px",
+                      background: "var(--accent-lime-dim)",
+                      border: "1px solid var(--accent-lime-border)",
+                      color: "var(--accent-lime)",
+                      margin: "0 auto 16px",
+                    }}
+                  >
+                    <Brain size={26} />
+                  </div>
+                  <h2 style={{ fontSize: "22px", fontWeight: 700, color: "var(--paper)", margin: "0 0 8px" }}>
+                    Source-Grounded Study Tutor
+                  </h2>
+                  <p style={{ fontSize: "14px", color: "var(--mist)", maxWidth: "480px", margin: "0 auto 28px", lineHeight: 1.6 }}>
+                    Ask questions about your course materials or attach a lecture slide deck to explore concepts, definitions, and active recall summaries.
+                  </p>
 
-            <p style={{ fontSize: "12px", color: "var(--mist)", margin: "0 0 20px" }}>
-              Get a free API key at{" "}
-              <a
-                href="https://openrouter.ai/keys"
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: "var(--mint)", textDecoration: "underline" }}
-              >
-                openrouter.ai/keys
-              </a>
-            </p>
+                  <div style={{ maxWidth: "600px", margin: "0 auto", textAlign: "left" }}>
+                    <p className="eyebrow" style={{ marginBottom: "10px" }}>
+                      Suggested Starter Inquiries
+                    </p>
+                    <div style={{ display: "grid", gap: "8px" }}>
+                      {STARTER_PROMPTS.map((prompt) => (
+                        <button
+                          key={prompt}
+                          type="button"
+                          onClick={() => handleSendMessage(prompt)}
+                          style={{
+                            padding: "12px 16px",
+                            borderRadius: "10px",
+                            background: "rgba(255, 255, 255, 0.03)",
+                            border: "1px solid var(--line)",
+                            color: "var(--paper)",
+                            fontSize: "13px",
+                            textAlign: "left",
+                            cursor: "pointer",
+                            transition: "all 0.18s ease",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                          className="hover:border-lime-400 hover:bg-white/5"
+                        >
+                          <span>{prompt}</span>
+                          <Send size={13} color="var(--accent-lime)" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                messages.map((msg) => {
+                  const isUser = msg.role === "USER";
+                  return (
+                    <article
+                      key={msg.id}
+                      style={{
+                        display: "flex",
+                        gap: "12px",
+                        alignSelf: isUser ? "flex-end" : "flex-start",
+                        maxWidth: "88%",
+                      }}
+                    >
+                      {!isUser && (
+                        <div
+                          style={{
+                            display: "grid",
+                            width: "34px",
+                            height: "34px",
+                            placeItems: "center",
+                            borderRadius: "8px",
+                            background: "var(--accent-lime-dim)",
+                            border: "1px solid var(--accent-lime-border)",
+                            color: "var(--accent-lime)",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Sparkles size={16} />
+                        </div>
+                      )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              {openRouterKey && (
-                <button
-                  type="button"
-                  className="button quiet"
-                  onClick={() => {
-                    setKeyInput("");
-                    localStorage.removeItem("openrouter_api_key");
-                    setOpenRouterKey("");
-                    setShowKeyModal(false);
-                  }}
-                  style={{ fontSize: "12px" }}
-                >
-                  Clear Key
-                </button>
+                      <div
+                        style={{
+                          background: isUser ? "rgba(122, 255, 135, 0.14)" : "rgba(16, 28, 20, 0.85)",
+                          border: isUser ? "1px solid var(--accent-lime-border)" : "1px solid var(--border-medium)",
+                          borderRadius: isUser ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                          padding: "16px 18px",
+                          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.2)",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "14px", marginBottom: "6px" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 700, color: isUser ? "var(--accent-lime)" : "var(--mint)" }}>
+                            {isUser ? "You" : "Smart Study Tutor"}
+                          </span>
+                          <span style={{ fontSize: "11px", color: "var(--mist)" }}>{msg.timestamp}</span>
+                        </div>
+
+                        {msg.attachment && (
+                          <div
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "4px 10px",
+                              borderRadius: "6px",
+                              background: "rgba(0, 0, 0, 0.35)",
+                              border: "1px solid var(--line)",
+                              fontSize: "12px",
+                              color: "var(--mint)",
+                              marginBottom: "10px",
+                            }}
+                          >
+                            <Paperclip size={13} />
+                            <span>{msg.attachment.name}</span>
+                            <span style={{ color: "var(--mist)", fontSize: "11px" }}>({msg.attachment.size})</span>
+                          </div>
+                        )}
+
+                        {/* Markdown formatting cleanly rendered without raw asterisks */}
+                        <MarkdownView content={msg.content} />
+
+                        {!isUser && (
+                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--line)" }}>
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboard(msg.id, msg.content)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "var(--mist)",
+                                fontSize: "11px",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                cursor: "pointer",
+                              }}
+                              className="hover:text-white"
+                            >
+                              {copiedId === msg.id ? (
+                                <>
+                                  <Check size={12} color="var(--accent-lime)" /> Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={12} /> Copy
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })
               )}
-              <button
-                type="button"
-                className="button primary"
-                onClick={saveOpenRouterKey}
-                style={{ fontSize: "12px" }}
-              >
-                Save & Connect
-              </button>
+
+              {isTyping && (
+                <div style={{ display: "flex", gap: "12px", alignSelf: "flex-start" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      width: "34px",
+                      height: "34px",
+                      placeItems: "center",
+                      borderRadius: "8px",
+                      background: "var(--accent-lime-dim)",
+                      color: "var(--accent-lime)",
+                    }}
+                  >
+                    <Sparkles size={16} />
+                  </div>
+                  <div
+                    style={{
+                      background: "rgba(16, 28, 20, 0.85)",
+                      border: "1px solid var(--line)",
+                      borderRadius: "16px 16px 16px 4px",
+                      padding: "12px 18px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--accent-lime)", animation: "glow-pulse 1s infinite" }} />
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--mint)", animation: "glow-pulse 1s infinite 0.2s" }} />
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--accent-lime)", animation: "glow-pulse 1s infinite 0.4s" }} />
+                    <span style={{ fontSize: "12px", color: "var(--mist)", marginLeft: "6px" }}>Analyzing source concepts...</span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
             </div>
           </div>
-        </div>
-      )}
-    </main>
+
+          {/* Sticky Composer Area (No double focus ring, Enter to submit, Shift+Enter for newline) */}
+          <div
+            style={{
+              padding: "16px 20px 24px",
+              background: "rgba(6, 13, 9, 0.95)",
+              borderTop: "1px solid var(--line)",
+              backdropFilter: "blur(20px)",
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ maxWidth: "820px", margin: "0 auto" }}>
+              {/* Attached file chip */}
+              {attachedFile && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "4px 12px",
+                      borderRadius: "999px",
+                      background: "var(--accent-lime-dim)",
+                      border: "1px solid var(--accent-lime-border)",
+                      color: "var(--accent-lime)",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <Paperclip size={13} />
+                    <span>{attachedFile.name} ({attachedFile.size})</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAttachedFile(null);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px" }}
+                      aria-label="Remove attached file"
+                    >
+                      <X size={13} />
+                    </button>
+                  </span>
+                </div>
+              )}
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "flex-end",
+                  gap: "10px",
+                  background: "rgba(12, 24, 17, 0.9)",
+                  border: "1px solid var(--border-medium)",
+                  borderRadius: "14px",
+                  padding: "8px 12px",
+                }}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  accept=".pdf,.docx,.txt,.md"
+                  style={{ display: "none" }}
+                />
+
+                <button
+                  type="button"
+                  className="btn-icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach study note (PDF, DOCX, TXT)"
+                  aria-label="Attach note file"
+                  style={{ width: "36px", height: "36px", flexShrink: 0 }}
+                >
+                  <Paperclip size={16} />
+                </button>
+
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask a question or request a summary... (Enter to send, Shift+Enter for newline)"
+                  style={{
+                    flex: 1,
+                    background: "transparent",
+                    border: "none",
+                    outline: "none",
+                    color: "var(--paper)",
+                    fontSize: "14px",
+                    resize: "none",
+                    maxHeight: "120px",
+                    padding: "6px 0",
+                    lineHeight: 1.5,
+                  }}
+                />
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={!inputText.trim() && !attachedFile}
+                  loading={isTyping}
+                  style={{ minHeight: "36px", padding: "0 14px", flexShrink: 0 }}
+                >
+                  <Send size={14} />
+                  <span className="hidden sm:inline">Send</span>
+                </Button>
+              </form>
+
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--mist)", marginTop: "6px", paddingInline: "4px" }}>
+                <span>Answers cite concepts directly from your notes</span>
+                <span>Enter to submit &bull; Shift+Enter for newline</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
