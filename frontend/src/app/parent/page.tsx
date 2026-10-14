@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Navbar } from "../navbar";
 import {
   Users,
   Award,
@@ -11,13 +10,23 @@ import {
   CheckCircle2,
   BookOpen,
   ArrowRight,
-  ShieldCheck,
   RefreshCw,
-  LogOut,
   Mail,
   UserX,
   Sparkles,
+  AlertTriangle,
+  BarChart3,
+  ListTodo,
+  Calendar,
+  Send,
+  ShieldAlert,
 } from "lucide-react";
+import { Navbar } from "../navbar";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatCard } from "@/components/ui/stat-card";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Child = {
   id: number;
@@ -46,7 +55,9 @@ type QuizRecord = {
 
 type SessionRecord = {
   id: number;
+  title?: string;
   durationMinutes: number;
+  durationSeconds?: number;
   status: string;
   startedAt: string;
 };
@@ -77,6 +88,7 @@ type Report = {
   taskCompletionPercent: number;
   quizAttempts: number;
   quizAccuracyPercent: number;
+  materialsTotal?: number;
   statusAssessment?: string;
   recentQuizzes?: QuizRecord[];
   recentSessions?: SessionRecord[];
@@ -86,18 +98,29 @@ type Report = {
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
+function formatDuration(mins: number): string {
+  if (mins < 60) return `${mins} min${mins === 1 ? "" : "s"}`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h} hr${h > 1 ? "s" : ""}` : `${h} hr ${m} min`;
+}
+
 export default function ParentPage() {
   const router = useRouter();
   const [children, setChildren] = useState<Child[]>([]);
   const [sentLinks, setSentLinks] = useState<SentLink[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
   const [reports, setReports] = useState<Record<number, Report>>({});
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const [notice, setNotice] = useState<string>("");
+  const [busy, setBusy] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<"overview" | "quizzes" | "sessions" | "tasks" | "materials">("overview");
+
+  // Confirmation dialogs
+  const [linkToCancel, setLinkToCancel] = useState<{ id: number; name: string } | null>(null);
+  const [studentToDisconnect, setStudentToDisconnect] = useState<{ linkId: number; name: string } | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -112,7 +135,7 @@ export default function ParentPage() {
       }
 
       if (!childrenRes.ok) {
-        throw new Error("This page is for parent accounts. Please sign in with a parent role.");
+        throw new Error("This portal is reserved for parent accounts. Please sign in with a parent role.");
       }
 
       const childrenData: Child[] = await childrenRes.json();
@@ -131,7 +154,7 @@ export default function ParentPage() {
         await loadChildReport(activeId);
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not load linked students.");
+      setError(cause instanceof Error ? cause.message : "Could not load linked student profiles.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -154,7 +177,7 @@ export default function ParentPage() {
       const data = (await response.json()) as Report;
       setReports((curr) => ({ ...curr, [studentId]: data }));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Failed to load progress details.");
+      setError(cause instanceof Error ? cause.message : "Failed to load student progress details.");
     }
   }
 
@@ -187,7 +210,7 @@ export default function ParentPage() {
       });
       const result = await response.json();
       if (!response.ok) {
-        throw new Error(result.error || "Could not send the request. Please check the email.");
+        throw new Error(result.error || "Could not send access request. Please check the email.");
       }
       setNotice(`Access request sent to ${result.student.name} (${result.student.email}). They will see an approval prompt on their dashboard.`);
       form.reset();
@@ -199,15 +222,16 @@ export default function ParentPage() {
     }
   }
 
-  async function handleCancelLink(linkId: number) {
-    if (!confirm("Are you sure you want to cancel or remove this connection?")) return;
+  async function executeCancelLink(linkId: number) {
     try {
       const res = await fetch(`${API}/parents/links/${linkId}`, {
         method: "DELETE",
         credentials: "include",
       });
-      if (!res.ok) throw new Error("Could not remove this link.");
-      setNotice("Student connection updated.");
+      if (!res.ok) throw new Error("Could not cancel this request.");
+      setNotice("Student connection request updated.");
+      setLinkToCancel(null);
+      setStudentToDisconnect(null);
       await loadData();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not cancel link.");
@@ -217,214 +241,361 @@ export default function ParentPage() {
   const selectedChild = children.find((c) => c.id === selectedChildId);
   const activeReport = selectedChildId ? reports[selectedChildId] : null;
 
+  // Study inactivity warning
+  const isInactive = activeReport && activeReport.weeklyStudyMinutes === 0 && activeReport.studyMinutes === 0;
+
   return (
     <>
-      <Navbar
-        customRightAction={
-          <button
-            className="small-action"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            style={{ display: "flex", alignItems: "center", gap: "6px" }}
+      <Navbar />
+      <main className="app-container" style={{ paddingBottom: "100px", paddingTop: "24px" }}>
+        <PageHeader
+          eyebrow="Family Academic Oversight"
+          title="Parent Portal"
+          description="Support your student's learning journey with real-time visibility into their study sessions, quiz comprehension, and scheduled deadlines."
+          actions={
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void handleRefresh()}
+              loading={refreshing}
+              icon={<RefreshCw size={14} />}
+            >
+              Refresh Telemetry
+            </Button>
+          }
+        />
+
+        {error && (
+          <div
+            role="alert"
+            style={{
+              padding: "14px 18px",
+              borderRadius: "12px",
+              background: "rgba(255, 107, 107, 0.1)",
+              border: "1px solid rgba(255, 107, 107, 0.3)",
+              color: "var(--danger)",
+              fontSize: "13px",
+              marginBottom: "24px",
+            }}
           >
-            <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
-            {refreshing ? "Updating..." : "Refresh Live Data"}
-          </button>
-        }
-      />
-      <main className="task-page" style={{ maxWidth: "1160px", margin: "0 auto", padding: "28px 24px" }}>
-        {/* Main Content Area */}
-        <section className="task-content" style={{ padding: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "24px" }}>
-          <div>
-            <p className="eyebrow" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <Users size={14} /> Student Monitoring &amp; Academic Overview
-            </p>
-            <h1 style={{ fontSize: "32px", fontWeight: 800, margin: "6px 0", letterSpacing: "-0.03em" }}>
-              Support Their Learning Journey.
-            </h1>
-            <p className="task-lead" style={{ maxWidth: "680px", color: "var(--mist)", fontSize: "14px", margin: 0 }}>
-              Real-time insights into your student&apos;s focus sessions, quiz results, study materials, and scheduled academic tasks.
-            </p>
-          </div>
-        </div>
-
-        {error && <p className="form-error" role="alert">{error}</p>}
-        {notice && <p className="success-note" role="status">{notice}</p>}
-
-        {/* Section 1: Connect New Student Form */}
-        <div
-          className="glass-panel"
-          style={{
-            padding: "20px 24px",
-            borderRadius: "16px",
-            marginBottom: "32px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "20px",
-          }}
-        >
-          <div>
-            <h3 style={{ fontSize: "16px", fontWeight: 700, margin: "0 0 4px", color: "var(--paper)" }}>
-              Link a Student Account
-            </h3>
-            <p style={{ margin: 0, fontSize: "12px", color: "var(--mist)" }}>
-              Send an authorization invite. The student must approve from their dashboard before metrics are displayed.
-            </p>
-          </div>
-
-          <form onSubmit={handleSendRequest} style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ position: "relative" }}>
-              <Mail size={15} style={{ position: "absolute", left: "12px", top: "13px", color: "var(--mist)" }} />
-              <input
-                name="email"
-                type="email"
-                required
-                placeholder="student@example.com"
-                style={{
-                  height: "40px",
-                  padding: "0 14px 0 34px",
-                  borderRadius: "10px",
-                  background: "rgba(0,0,0,0.35)",
-                  border: "1px solid var(--line)",
-                  color: "var(--paper)",
-                  fontSize: "13px",
-                  minWidth: "260px",
-                }}
-              />
-            </div>
-            <button type="submit" className="button primary" disabled={busy} style={{ height: "40px", padding: "0 18px" }}>
-              {busy ? "Sending..." : "Request Access"}
-              <ArrowRight size={14} />
-            </button>
-          </form>
-        </div>
-
-        {/* Section 2: Outgoing Pending Requests if any */}
-        {sentLinks.length > 0 && (
-          <div style={{ marginBottom: "28px" }}>
-            <h4 style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--mint)", marginBottom: "10px" }}>
-              Pending Student Approvals ({sentLinks.length})
-            </h4>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "12px" }}>
-              {sentLinks.map((link) => (
-                <div
-                  key={link.id}
-                  style={{
-                    background: "rgba(255, 255, 255, 0.03)",
-                    border: "1px dashed var(--line-bright)",
-                    borderRadius: "12px",
-                    padding: "14px 18px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <strong style={{ display: "block", fontSize: "13px", color: "var(--paper)" }}>
-                      {link.student.name}
-                    </strong>
-                    <span style={{ fontSize: "11px", color: "var(--mist)" }}>{link.student.email}</span>
-                    <span style={{ display: "block", fontSize: "10px", color: "var(--gold)", marginTop: "2px" }}>
-                      ⏳ Waiting for student approval
-                    </span>
-                  </div>
-                  <button
-                    className="small-action"
-                    onClick={() => handleCancelLink(link.id)}
-                    title="Cancel request"
-                    style={{ borderColor: "rgba(255, 151, 127, 0.3)", color: "var(--coral)" }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              ))}
-            </div>
+            {error}
           </div>
         )}
 
-        {/* Section 3: Linked Students & Progress Monitor */}
+        {notice && (
+          <div
+            role="status"
+            style={{
+              padding: "14px 18px",
+              borderRadius: "12px",
+              background: "rgba(196, 255, 106, 0.08)",
+              border: "1px solid rgba(196, 255, 106, 0.25)",
+              color: "var(--accent-lime)",
+              fontSize: "13px",
+              marginBottom: "24px",
+            }}
+          >
+            {notice}
+          </div>
+        )}
+
+        {/* Link Student Account Card */}
+        <section
+          style={{
+            background: "var(--surface-1)",
+            border: "1px solid var(--border-subtle)",
+            borderRadius: "20px",
+            padding: "24px 28px",
+            marginBottom: "32px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "20px",
+            }}
+          >
+            <div>
+              <h2 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 4px" }}>
+                Link a Student Account
+              </h2>
+              <p style={{ margin: 0, fontSize: "13px", color: "var(--mist)" }}>
+                Send an invitation to your student's registered email. Once approved from their dashboard, their progress will display here.
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleSendRequest}
+              style={{
+                display: "flex",
+                gap: "10px",
+                flexWrap: "wrap",
+                alignItems: "center",
+              }}
+            >
+              <div style={{ position: "relative" }}>
+                <Mail
+                  size={15}
+                  style={{
+                    position: "absolute",
+                    left: "14px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "var(--mist)",
+                  }}
+                />
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="student@example.com"
+                  style={{
+                    height: "44px",
+                    padding: "0 14px 0 38px",
+                    borderRadius: "10px",
+                    background: "rgba(0,0,0,0.35)",
+                    border: "1px solid var(--border-subtle)",
+                    color: "var(--paper)",
+                    fontSize: "13px",
+                    minWidth: "260px",
+                  }}
+                />
+              </div>
+              <Button
+                variant="primary"
+                size="default"
+                type="submit"
+                loading={busy}
+                icon={<Send size={15} />}
+                style={{ minHeight: "44px" }}
+              >
+                Send Request
+              </Button>
+            </form>
+          </div>
+
+          {/* Pending Invitations Strip */}
+          {sentLinks.length > 0 && (
+            <div
+              style={{
+                marginTop: "20px",
+                paddingTop: "20px",
+                borderTop: "1px solid var(--border-subtle)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  color: "var(--mist)",
+                  display: "block",
+                  marginBottom: "10px",
+                }}
+              >
+                Pending Authorization Requests ({sentLinks.length})
+              </span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                {sentLinks.map((link) => (
+                  <div
+                    key={link.id}
+                    style={{
+                      background: "rgba(255, 255, 255, 0.03)",
+                      border: "1px dashed var(--border-subtle)",
+                      borderRadius: "12px",
+                      padding: "10px 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <div>
+                      <strong style={{ display: "block", color: "var(--paper)" }}>
+                        {link.student.name}
+                      </strong>
+                      <span style={{ fontSize: "11px", color: "var(--mist)" }}>
+                        {link.student.email} • Pending approval
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setLinkToCancel({ id: link.id, name: link.student.name })
+                      }
+                      style={{ fontSize: "12px", height: "32px", padding: "0 8px", color: "var(--danger)" }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Linked Students & Reports Section */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "48px 0", color: "var(--mist)" }}>
+          <div style={{ textAlign: "center", padding: "64px 0", color: "var(--mist)" }}>
             <RefreshCw size={24} className="animate-spin" style={{ margin: "0 auto 12px" }} />
             <p>Loading linked student profiles...</p>
           </div>
         ) : children.length === 0 ? (
-          <div className="glass-panel" style={{ padding: "48px 24px", textAlign: "center", borderRadius: "18px" }}>
-            <div style={{ width: "56px", height: "56px", borderRadius: "28px", background: "rgba(132, 229, 188, 0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "var(--mint)" }}>
-              <Users size={28} />
-            </div>
-            <h3 style={{ fontSize: "18px", fontWeight: 700, margin: "0 0 8px" }}>No Approved Student Links Yet</h3>
-            <p style={{ maxWidth: "460px", margin: "0 auto 20px", fontSize: "13px", color: "var(--mist)", lineHeight: 1.6 }}>
-              Enter your student&apos;s registered email above to send a linking request. Once they accept it from their dashboard, their study metrics and progress will appear here immediately.
-            </p>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No Linked Students Yet"
+            description="Enter your student's registered email above to send an authorization link. Once approved, their verified focus sessions, task velocity, and quiz scores will automatically appear here."
+          />
         ) : (
           <div>
             {/* Student Switcher Bar */}
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "12px", color: "var(--mist)", fontWeight: 600 }}>Active Student:</span>
-              {children.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => {
-                    setSelectedChildId(c.id);
-                    if (!reports[c.id]) void loadChildReport(c.id);
-                  }}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "12px",
-                    border: "1px solid",
-                    borderColor: selectedChildId === c.id ? "var(--lime)" : "var(--line)",
-                    background: selectedChildId === c.id ? "rgba(196, 255, 106, 0.12)" : "rgba(255, 255, 255, 0.03)",
-                    color: selectedChildId === c.id ? "var(--lime)" : "var(--paper)",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
-                >
-                  <Users size={14} />
-                  {c.name}
-                </button>
-              ))}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "12px",
+                marginBottom: "24px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--mist)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Active Student:
+                </span>
+                {children.map((c) => {
+                  const active = selectedChildId === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedChildId(c.id);
+                        if (!reports[c.id]) void loadChildReport(c.id);
+                      }}
+                      style={{
+                        minHeight: "44px",
+                        padding: "8px 18px",
+                        borderRadius: "12px",
+                        border: active
+                          ? "1px solid var(--accent-lime)"
+                          : "1px solid var(--border-subtle)",
+                        background: active
+                          ? "rgba(196, 255, 106, 0.12)"
+                          : "rgba(255, 255, 255, 0.03)",
+                        color: active ? "var(--accent-lime)" : "var(--paper)",
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        boxShadow: active ? "0 0 16px rgba(196, 255, 106, 0.12)" : "none",
+                      }}
+                    >
+                      <Users size={15} />
+                      {c.name}
+                    </button>
+                  );
+                })}
+              </div>
 
               {selectedChild?.linkId && (
-                <button
-                  className="small-action"
-                  onClick={() => handleCancelLink(selectedChild.linkId!)}
-                  style={{ marginLeft: "auto", color: "var(--coral)", borderColor: "rgba(255, 151, 127, 0.3)" }}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setStudentToDisconnect({
+                      linkId: selectedChild.linkId!,
+                      name: selectedChild.name,
+                    })
+                  }
+                  icon={<UserX size={14} />}
+                  style={{ color: "var(--danger)" }}
                 >
-                  <UserX size={12} style={{ marginRight: "4px" }} /> Disconnect Student
-                </button>
+                  Disconnect Student
+                </Button>
               )}
             </div>
 
-            {/* Progress Display for Selected Child */}
+            {/* Inactivity Alert Banner if applicable */}
+            {isInactive && (
+              <div
+                style={{
+                  padding: "14px 20px",
+                  borderRadius: "14px",
+                  background: "rgba(255, 151, 127, 0.08)",
+                  border: "1px solid rgba(255, 151, 127, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  marginBottom: "24px",
+                }}
+              >
+                <ShieldAlert size={18} color="var(--danger)" />
+                <div style={{ fontSize: "13px", color: "var(--paper)" }}>
+                  <strong>Activity Alert:</strong> {selectedChild?.name} has not recorded any verified study sessions or task completions yet. Consider reviewing their schedule together.
+                </div>
+              </div>
+            )}
+
+            {/* Selected Child Academic Overview */}
             {activeReport ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                {/* Status Assessment Banner */}
+                {/* Data-Driven Honest Status Assessment Banner */}
                 {activeReport.statusAssessment && (
                   <div
                     style={{
-                      background: "linear-gradient(90deg, rgba(132, 229, 188, 0.14), rgba(196, 255, 106, 0.06))",
-                      border: "1px solid rgba(132, 229, 188, 0.35)",
-                      borderRadius: "14px",
+                      background: activeReport.statusAssessment.includes("Needs") ||
+                        activeReport.statusAssessment.includes("Review")
+                        ? "rgba(255, 151, 127, 0.07)"
+                        : "rgba(196, 255, 106, 0.07)",
+                      border: activeReport.statusAssessment.includes("Needs") ||
+                        activeReport.statusAssessment.includes("Review")
+                        ? "1px solid rgba(255, 151, 127, 0.3)"
+                        : "1px solid rgba(196, 255, 106, 0.25)",
+                      borderRadius: "16px",
                       padding: "16px 20px",
                       display: "flex",
                       alignItems: "center",
                       gap: "14px",
                     }}
                   >
-                    <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "var(--lime)", color: "#10190c", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div
+                      style={{
+                        width: "38px",
+                        height: "38px",
+                        borderRadius: "10px",
+                        background: activeReport.statusAssessment.includes("Needs") ||
+                          activeReport.statusAssessment.includes("Review")
+                          ? "rgba(255, 107, 107, 0.15)"
+                          : "rgba(196, 255, 106, 0.15)",
+                        color: activeReport.statusAssessment.includes("Needs") ||
+                          activeReport.statusAssessment.includes("Review")
+                          ? "var(--danger)"
+                          : "var(--accent-lime)",
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                      }}
+                    >
                       <Sparkles size={20} />
                     </div>
                     <div>
-                      <span style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.12em", color: "var(--mint)", fontWeight: 800 }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                          color: "var(--mist)",
+                          fontWeight: 700,
+                        }}
+                      >
                         Academic Status Assessment
                       </span>
                       <p style={{ margin: "2px 0 0", fontSize: "14px", fontWeight: 600, color: "var(--paper)" }}>
@@ -434,160 +605,248 @@ export default function ParentPage() {
                   </div>
                 )}
 
-                {/* 4 Core KPI Cards */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-                  {/* Study Time */}
-                  <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--mist)", fontWeight: 700 }}>
-                        Total Study Time
-                      </span>
-                      <Clock size={16} color="var(--mint)" />
-                    </div>
-                    <div style={{ fontSize: "32px", fontWeight: 800, color: "var(--lime)", letterSpacing: "-0.03em" }}>
-                      {activeReport.studyMinutes} <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--paper)" }}>mins</span>
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--mist)", marginTop: "6px" }}>
-                      Today: <strong>{activeReport.todayStudyMinutes}m</strong> | Past 7 days: <strong>{activeReport.weeklyStudyMinutes}m</strong>
-                    </div>
-                  </div>
+                {/* 4 Core Stat Cards (Synchronized with student database) */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                    gap: "16px",
+                  }}
+                >
+                  {/* 1. Study Time */}
+                  <StatCard
+                    label="Total Study Time"
+                    value={activeReport.studyMinutes}
+                    unit="mins"
+                    icon={Clock}
+                    iconColor="var(--accent-lime)"
+                    subtext={`Today: ${activeReport.todayStudyMinutes}m | Past 7 days: ${activeReport.weeklyStudyMinutes}m`}
+                  />
 
-                  {/* Task Completion */}
-                  <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--mist)", fontWeight: 700 }}>
-                        Task Completion
-                      </span>
-                      <CheckCircle2 size={16} color="var(--mint)" />
-                    </div>
-                    <div style={{ fontSize: "32px", fontWeight: 800, color: "var(--paper)", letterSpacing: "-0.03em" }}>
-                      {activeReport.taskCompletionPercent}%
-                    </div>
-                    <div style={{ marginTop: "8px", background: "rgba(255,255,255,0.1)", height: "6px", borderRadius: "3px", overflow: "hidden" }}>
-                      <div
-                        style={{
-                          width: `${Math.min(activeReport.taskCompletionPercent, 100)}%`,
-                          background: "var(--mint)",
-                          height: "100%",
-                          borderRadius: "3px",
-                        }}
-                      />
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--mist)", marginTop: "6px" }}>
-                      {activeReport.tasksCompleted} of {activeReport.tasksTotal} tasks completed
-                    </div>
-                  </div>
+                  {/* 2. Tasks Completed */}
+                  <StatCard
+                    label="Task Completion"
+                    value={`${activeReport.tasksCompleted}/${activeReport.tasksTotal}`}
+                    icon={CheckCircle2}
+                    iconColor="var(--mint)"
+                    progressPercent={activeReport.taskCompletionPercent}
+                    subtext={`${activeReport.taskCompletionPercent}% schedule velocity`}
+                  />
 
-                  {/* Quiz Mastery */}
-                  <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--mist)", fontWeight: 700 }}>
-                        Quiz Accuracy
-                      </span>
-                      <Award size={16} color="var(--gold)" />
-                    </div>
-                    <div style={{ fontSize: "32px", fontWeight: 800, color: "var(--gold)", letterSpacing: "-0.03em" }}>
-                      {activeReport.quizAccuracyPercent}%
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--mist)", marginTop: "6px" }}>
-                      Based on {activeReport.quizAttempts} quiz attempt{activeReport.quizAttempts === 1 ? "" : "s"}
-                    </div>
-                  </div>
+                  {/* 3. Quiz Accuracy */}
+                  <StatCard
+                    label="Quiz Accuracy"
+                    value={activeReport.quizAttempts > 0 ? `${activeReport.quizAccuracyPercent}%` : "—"}
+                    icon={Award}
+                    iconColor="#f6c445"
+                    subtext={`Based on ${activeReport.quizAttempts} test attempt${activeReport.quizAttempts === 1 ? "" : "s"}`}
+                  />
 
-                  {/* Materials Under Study */}
-                  <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--mist)", fontWeight: 700 }}>
-                        Study Library
-                      </span>
-                      <BookOpen size={16} color="var(--blue)" />
-                    </div>
-                    <div style={{ fontSize: "32px", fontWeight: 800, color: "var(--blue)", letterSpacing: "-0.03em" }}>
-                      {activeReport.materialsStudied?.length ?? 0}
-                    </div>
-                    <div style={{ fontSize: "11px", color: "var(--mist)", marginTop: "6px" }}>
-                      Notes &amp; subject documents uploaded
-                    </div>
-                  </div>
+                  {/* 4. Study Library */}
+                  <StatCard
+                    label="Study Library"
+                    value={activeReport.materialsTotal ?? activeReport.materialsStudied?.length ?? 0}
+                    unit="docs"
+                    icon={BookOpen}
+                    iconColor="var(--info)"
+                    subtext="Processed course notes & textbooks"
+                  />
                 </div>
 
-                {/* Sub-Navigation Tabs */}
-                <div style={{ display: "flex", borderBottom: "1px solid var(--line)", gap: "24px", margin: "8px 0" }}>
+                {/* Sub-Navigation Tabs with Lucide Icons (Replacing emoji icons) */}
+                <div
+                  role="tablist"
+                  aria-label="Parent view tabs"
+                  style={{
+                    display: "flex",
+                    borderBottom: "1px solid var(--border-subtle)",
+                    gap: "12px",
+                    marginTop: "8px",
+                    overflowX: "auto",
+                    paddingBottom: "2px",
+                  }}
+                >
                   {[
-                    { key: "overview", label: "📊 Overview & Recent Activity" },
-                    { key: "quizzes", label: `📝 Quizzes (${activeReport.recentQuizzes?.length ?? 0})` },
-                    { key: "sessions", label: `⏱️ Study Sessions (${activeReport.recentSessions?.length ?? 0})` },
-                    { key: "tasks", label: `📋 Tasks (${activeReport.recentTasks?.length ?? 0})` },
-                    { key: "materials", label: `📚 Library (${activeReport.materialsStudied?.length ?? 0})` },
-                  ].map((tab) => (
-                    <button
-                      key={tab.key}
-                      onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                      style={{
-                        padding: "10px 4px",
-                        background: "none",
-                        border: "none",
-                        borderBottom: activeTab === tab.key ? "2px solid var(--lime)" : "2px solid transparent",
-                        color: activeTab === tab.key ? "var(--lime)" : "var(--mist)",
-                        fontWeight: 700,
-                        fontSize: "13px",
-                        cursor: "pointer",
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
+                    {
+                      key: "overview",
+                      label: "Overview & Recents",
+                      icon: BarChart3,
+                    },
+                    {
+                      key: "quizzes",
+                      label: `Quizzes (${activeReport.recentQuizzes?.length ?? 0})`,
+                      icon: Award,
+                    },
+                    {
+                      key: "sessions",
+                      label: `Study Sessions (${activeReport.recentSessions?.length ?? 0})`,
+                      icon: Clock,
+                    },
+                    {
+                      key: "tasks",
+                      label: `Tasks (${activeReport.recentTasks?.length ?? 0})`,
+                      icon: ListTodo,
+                    },
+                    {
+                      key: "materials",
+                      label: `Library (${activeReport.materialsTotal ?? activeReport.materialsStudied?.length ?? 0})`,
+                      icon: BookOpen,
+                    },
+                  ].map((tab) => {
+                    const active = activeTab === tab.key;
+                    const Icon = tab.icon;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setActiveTab(tab.key as typeof activeTab)}
+                        style={{
+                          minHeight: "44px",
+                          padding: "10px 14px",
+                          background: "none",
+                          border: "none",
+                          borderBottom: active ? "2px solid var(--accent-lime)" : "2px solid transparent",
+                          color: active ? "var(--accent-lime)" : "var(--mist)",
+                          fontWeight: active ? 600 : 500,
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          whiteSpace: "nowrap",
+                          transition: "color 0.15s ease",
+                        }}
+                      >
+                        <Icon size={15} />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Tab 1: Overview */}
                 {activeTab === "overview" && (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "20px" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
+                      gap: "24px",
+                    }}
+                  >
                     {/* Recent Quizzes Snapshot */}
-                    <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                      <h4 style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 14px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Award size={16} color="var(--gold)" /> Recent Quiz Scores
-                      </h4>
+                    <div
+                      style={{
+                        background: "var(--surface-1)",
+                        border: "1px solid var(--border-subtle)",
+                        borderRadius: "18px",
+                        padding: "24px",
+                      }}
+                    >
+                      <h3 style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <Award size={16} color="var(--accent-lime)" /> Recent Quiz Comprehension
+                      </h3>
                       {activeReport.recentQuizzes && activeReport.recentQuizzes.length > 0 ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                           {activeReport.recentQuizzes.slice(0, 4).map((q) => (
-                            <div key={q.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "rgba(0,0,0,0.25)", borderRadius: "10px" }}>
+                            <div
+                              key={q.id}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "12px 14px",
+                                background: "rgba(255, 255, 255, 0.02)",
+                                border: "1px solid var(--border-subtle)",
+                                borderRadius: "10px",
+                              }}
+                            >
                               <div>
-                                <span style={{ fontSize: "13px", fontWeight: 600, display: "block" }}>{q.title}</span>
-                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>{new Date(q.submittedAt).toLocaleDateString()}</span>
+                                <span style={{ fontSize: "13px", fontWeight: 600, display: "block", color: "var(--paper)" }}>
+                                  {q.title}
+                                </span>
+                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>
+                                  {new Date(q.submittedAt).toLocaleDateString()}
+                                </span>
                               </div>
-                              <span style={{ fontSize: "13px", fontWeight: 800, color: q.accuracyPercent >= 70 ? "var(--mint)" : "var(--coral)", background: "rgba(255,255,255,0.06)", padding: "4px 8px", borderRadius: "8px" }}>
+                              <span
+                                style={{
+                                  fontSize: "13px",
+                                  fontWeight: 700,
+                                  color: q.accuracyPercent >= 70 ? "var(--accent-lime)" : "var(--danger)",
+                                  background: q.accuracyPercent >= 70 ? "rgba(196,255,106,0.1)" : "rgba(255,107,107,0.1)",
+                                  padding: "4px 10px",
+                                  borderRadius: "8px",
+                                }}
+                              >
                                 {q.score}/{q.total} ({q.accuracyPercent}%)
                               </span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p style={{ fontSize: "12px", color: "var(--mist)" }}>No quizzes taken yet.</p>
+                        <p style={{ fontSize: "13px", color: "var(--mist)", margin: 0 }}>No quizzes taken yet.</p>
                       )}
                     </div>
 
                     {/* Recent Focus Sessions Snapshot */}
-                    <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                      <h4 style={{ fontSize: "14px", fontWeight: 700, margin: "0 0 14px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Clock size={16} color="var(--mint)" /> Recent Study Sessions
-                      </h4>
+                    <div
+                      style={{
+                        background: "var(--surface-1)",
+                        border: "1px solid var(--border-subtle)",
+                        borderRadius: "18px",
+                        padding: "24px",
+                      }}
+                    >
+                      <h3 style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <Clock size={16} color="var(--mint)" /> Recent Focus Sessions
+                      </h3>
                       {activeReport.recentSessions && activeReport.recentSessions.length > 0 ? (
                         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                           {activeReport.recentSessions.slice(0, 4).map((s) => (
-                            <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "rgba(0,0,0,0.25)", borderRadius: "10px" }}>
+                            <div
+                              key={s.id}
+                              style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "12px 14px",
+                                background: "rgba(255, 255, 255, 0.02)",
+                                border: "1px solid var(--border-subtle)",
+                                borderRadius: "10px",
+                              }}
+                            >
                               <div>
-                                <span style={{ fontSize: "13px", fontWeight: 600, display: "block" }}>Focus Session</span>
-                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>{new Date(s.startedAt).toLocaleString()}</span>
+                                <span style={{ fontSize: "13px", fontWeight: 600, display: "block", color: "var(--paper)" }}>
+                                  {s.title || "General Focus & Study"}
+                                </span>
+                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>
+                                  {new Date(s.startedAt).toLocaleString(undefined, {
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
                               </div>
-                              <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--lime)" }}>
-                                {s.durationMinutes} mins
+                              <span
+                                style={{
+                                  fontSize: "13px",
+                                  fontWeight: 700,
+                                  color: "var(--accent-lime)",
+                                  background: "rgba(196,255,106,0.1)",
+                                  padding: "4px 10px",
+                                  borderRadius: "8px",
+                                }}
+                              >
+                                {formatDuration(s.durationMinutes)}
                               </span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p style={{ fontSize: "12px", color: "var(--mist)" }}>No focus sessions logged yet.</p>
+                        <p style={{ fontSize: "13px", color: "var(--mist)", margin: 0 }}>No study sessions logged yet.</p>
                       )}
                     </div>
                   </div>
@@ -595,18 +854,48 @@ export default function ParentPage() {
 
                 {/* Tab 2: All Quizzes */}
                 {activeTab === "quizzes" && (
-                  <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: "0 0 16px" }}>Quiz History &amp; Accuracy</h3>
+                  <div
+                    style={{
+                      background: "var(--surface-1)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "18px",
+                      padding: "24px",
+                    }}
+                  >
+                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
+                      Quiz History & Accuracy
+                    </h3>
                     {activeReport.recentQuizzes && activeReport.recentQuizzes.length > 0 ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {activeReport.recentQuizzes.map((q) => (
-                          <div key={q.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "rgba(0,0,0,0.25)", borderRadius: "12px", border: "1px solid var(--line)" }}>
+                          <div
+                            key={q.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "14px 18px",
+                              background: "rgba(255, 255, 255, 0.02)",
+                              borderRadius: "12px",
+                              border: "1px solid var(--border-subtle)",
+                            }}
+                          >
                             <div>
-                              <strong style={{ fontSize: "14px", color: "var(--paper)", display: "block" }}>{q.title}</strong>
-                              <span style={{ fontSize: "11px", color: "var(--mist)" }}>Completed on {new Date(q.submittedAt).toLocaleString()}</span>
+                              <strong style={{ fontSize: "14px", color: "var(--paper)", display: "block" }}>
+                                {q.title}
+                              </strong>
+                              <span style={{ fontSize: "12px", color: "var(--mist)" }}>
+                                Completed {new Date(q.submittedAt).toLocaleString()}
+                              </span>
                             </div>
                             <div style={{ textAlign: "right" }}>
-                              <span style={{ fontSize: "15px", fontWeight: 800, color: q.accuracyPercent >= 70 ? "var(--mint)" : "var(--coral)" }}>
+                              <span
+                                style={{
+                                  fontSize: "15px",
+                                  fontWeight: 700,
+                                  color: q.accuracyPercent >= 70 ? "var(--accent-lime)" : "var(--danger)",
+                                }}
+                              >
                                 {q.score} / {q.total}
                               </span>
                               <span style={{ display: "block", fontSize: "11px", color: "var(--mist)" }}>
@@ -617,50 +906,113 @@ export default function ParentPage() {
                         ))}
                       </div>
                     ) : (
-                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>No quizzes completed by this student yet.</p>
+                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>
+                        No quizzes completed by this student yet.
+                      </p>
                     )}
                   </div>
                 )}
 
                 {/* Tab 3: All Sessions */}
                 {activeTab === "sessions" && (
-                  <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: "0 0 16px" }}>Focus Study Logs</h3>
+                  <div
+                    style={{
+                      background: "var(--surface-1)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "18px",
+                      padding: "24px",
+                    }}
+                  >
+                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
+                      Verified Study Sessions
+                    </h3>
                     {activeReport.recentSessions && activeReport.recentSessions.length > 0 ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {activeReport.recentSessions.map((s) => (
-                          <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "rgba(0,0,0,0.25)", borderRadius: "12px", border: "1px solid var(--line)" }}>
+                          <div
+                            key={s.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "14px 18px",
+                              background: "rgba(255, 255, 255, 0.02)",
+                              borderRadius: "12px",
+                              border: "1px solid var(--border-subtle)",
+                            }}
+                          >
                             <div>
-                              <span style={{ fontSize: "14px", fontWeight: 600, display: "block" }}>Pomodoro / Focus Block</span>
-                              <span style={{ fontSize: "11px", color: "var(--mist)" }}>{new Date(s.startedAt).toLocaleString()}</span>
+                              <span style={{ fontSize: "14px", fontWeight: 600, display: "block", color: "var(--paper)" }}>
+                                {s.title || "General Focus & Study"}
+                              </span>
+                              <span style={{ fontSize: "12px", color: "var(--mist)" }}>
+                                {new Date(s.startedAt).toLocaleString()}
+                              </span>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                              <span style={{ fontSize: "11px", padding: "3px 8px", borderRadius: "6px", background: "rgba(132, 229, 188, 0.15)", color: "var(--mint)" }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  background: "rgba(196, 255, 106, 0.1)",
+                                  color: "var(--accent-lime)",
+                                  fontWeight: 600,
+                                }}
+                              >
                                 {s.status}
                               </span>
-                              <strong style={{ fontSize: "15px", color: "var(--lime)" }}>
-                                {s.durationMinutes} min
+                              <strong style={{ fontSize: "15px", color: "var(--accent-lime)" }}>
+                                {formatDuration(s.durationMinutes)}
                               </strong>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>No study sessions recorded yet.</p>
+                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>
+                        No study sessions recorded yet.
+                      </p>
                     )}
                   </div>
                 )}
 
                 {/* Tab 4: Study Tasks */}
                 {activeTab === "tasks" && (
-                  <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: "0 0 16px" }}>Scheduled Tasks &amp; Goals</h3>
+                  <div
+                    style={{
+                      background: "var(--surface-1)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "18px",
+                      padding: "24px",
+                    }}
+                  >
+                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
+                      Scheduled Tasks & Milestones
+                    </h3>
                     {activeReport.recentTasks && activeReport.recentTasks.length > 0 ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {activeReport.recentTasks.map((t) => (
-                          <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "rgba(0,0,0,0.25)", borderRadius: "12px", border: "1px solid var(--line)" }}>
+                          <div
+                            key={t.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "14px 18px",
+                              background: "rgba(255, 255, 255, 0.02)",
+                              borderRadius: "12px",
+                              border: "1px solid var(--border-subtle)",
+                            }}
+                          >
                             <div>
-                              <strong style={{ fontSize: "14px", color: t.status === "COMPLETED" ? "var(--mist)" : "var(--paper)", textDecoration: t.status === "COMPLETED" ? "line-through" : "none" }}>
+                              <strong
+                                style={{
+                                  fontSize: "14px",
+                                  color: t.status === "COMPLETED" ? "var(--mist)" : "var(--paper)",
+                                  textDecoration: t.status === "COMPLETED" ? "line-through" : "none",
+                                }}
+                              >
                                 {t.title}
                               </strong>
                               {t.scheduledDate && (
@@ -670,10 +1022,31 @@ export default function ParentPage() {
                               )}
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              <span style={{ fontSize: "10px", padding: "3px 8px", borderRadius: "6px", background: "rgba(255, 255, 255, 0.08)", color: "var(--mist)" }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  background: "rgba(255, 255, 255, 0.06)",
+                                  color: "var(--mist)",
+                                }}
+                              >
                                 {t.estimatedMinutes}m est.
                               </span>
-                              <span style={{ fontSize: "11px", padding: "3px 8px", borderRadius: "6px", background: t.status === "COMPLETED" ? "rgba(132, 229, 188, 0.15)" : "rgba(255, 214, 105, 0.15)", color: t.status === "COMPLETED" ? "var(--mint)" : "var(--gold)", fontWeight: 700 }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  padding: "3px 8px",
+                                  borderRadius: "6px",
+                                  background:
+                                    t.status === "COMPLETED"
+                                      ? "rgba(196, 255, 106, 0.12)"
+                                      : "rgba(255, 204, 0, 0.12)",
+                                  color:
+                                    t.status === "COMPLETED" ? "var(--accent-lime)" : "#f6c445",
+                                  fontWeight: 600,
+                                }}
+                              >
                                 {t.status}
                               </span>
                             </div>
@@ -681,27 +1054,60 @@ export default function ParentPage() {
                         ))}
                       </div>
                     ) : (
-                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>No tasks created yet.</p>
+                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>No tasks scheduled yet.</p>
                     )}
                   </div>
                 )}
 
                 {/* Tab 5: Library */}
                 {activeTab === "materials" && (
-                  <div className="glass-panel" style={{ padding: "20px", borderRadius: "16px" }}>
-                    <h3 style={{ fontSize: "15px", fontWeight: 700, margin: "0 0 16px" }}>Uploaded Study Materials</h3>
+                  <div
+                    style={{
+                      background: "var(--surface-1)",
+                      border: "1px solid var(--border-subtle)",
+                      borderRadius: "18px",
+                      padding: "24px",
+                    }}
+                  >
+                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
+                      Uploaded Study Materials
+                    </h3>
                     {activeReport.materialsStudied && activeReport.materialsStudied.length > 0 ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {activeReport.materialsStudied.map((m) => (
-                          <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "rgba(0,0,0,0.25)", borderRadius: "12px", border: "1px solid var(--line)" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              <BookOpen size={16} color="var(--blue)" />
+                          <div
+                            key={m.id}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              padding: "14px 18px",
+                              background: "rgba(255, 255, 255, 0.02)",
+                              borderRadius: "12px",
+                              border: "1px solid var(--border-subtle)",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                              <BookOpen size={16} color="var(--accent-lime)" />
                               <div>
-                                <strong style={{ fontSize: "14px", color: "var(--paper)", display: "block" }}>{m.title}</strong>
-                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>Uploaded on {new Date(m.createdAt).toLocaleDateString()}</span>
+                                <strong style={{ fontSize: "14px", color: "var(--paper)", display: "block" }}>
+                                  {m.title}
+                                </strong>
+                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>
+                                  Uploaded on {new Date(m.createdAt).toLocaleDateString()}
+                                </span>
                               </div>
                             </div>
-                            <span style={{ fontSize: "11px", padding: "4px 9px", borderRadius: "8px", background: "rgba(132, 229, 188, 0.15)", color: "var(--mint)", fontWeight: 600 }}>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                padding: "4px 10px",
+                                borderRadius: "8px",
+                                background: "rgba(196, 255, 106, 0.1)",
+                                color: "var(--accent-lime)",
+                                fontWeight: 600,
+                              }}
+                            >
                               {m.status}
                             </span>
                           </div>
@@ -714,14 +1120,41 @@ export default function ParentPage() {
                 )}
               </div>
             ) : (
-              <div style={{ textAlign: "center", padding: "32px 0", color: "var(--mist)" }}>
+              <div style={{ textAlign: "center", padding: "48px 0", color: "var(--mist)" }}>
                 <p>Loading student report details...</p>
               </div>
             )}
           </div>
         )}
-      </section>
-    </main>
+      </main>
+
+      {/* Cancel Link Request Dialog */}
+      {linkToCancel && (
+        <ConfirmDialog
+          isOpen={true}
+          title="Cancel Link Request?"
+          description={`Are you sure you want to cancel the pending authorization request for ${linkToCancel.name}?`}
+          confirmLabel="Cancel Request"
+          cancelLabel="Keep Request"
+          danger={true}
+          onConfirm={() => void executeCancelLink(linkToCancel.id)}
+          onCancel={() => setLinkToCancel(null)}
+        />
+      )}
+
+      {/* Disconnect Student Dialog */}
+      {studentToDisconnect && (
+        <ConfirmDialog
+          isOpen={true}
+          title={`Disconnect from ${studentToDisconnect.name}?`}
+          description="Are you sure you want to remove this student connection? You will no longer have access to their study sessions, task updates, or quiz scores until re-authorized."
+          confirmLabel="Disconnect Student"
+          cancelLabel="Keep Connected"
+          danger={true}
+          onConfirm={() => void executeCancelLink(studentToDisconnect.linkId)}
+          onCancel={() => setStudentToDisconnect(null)}
+        />
+      )}
     </>
   );
 }

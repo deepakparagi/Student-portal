@@ -177,43 +177,51 @@ public class ParentController {
         Map<String, Object> report = new HashMap<>();
         report.put("student", user(child));
 
-        // Focus & study sessions
-        List<FocusSession> allSessions = focus.findByStudentId(studentId);
-        long studyMinutes = allSessions.stream()
-                .filter(s -> "COMPLETED".equals(s.getStatus()))
-                .mapToLong(s -> s.getDurationSeconds() / 60)
-                .sum();
+        // Focus & study sessions (matching ProgressController single source of truth)
+        long totalSecs = focus.totalSeconds(studentId);
+        long studyMinutes = totalSecs >= 60 ? (totalSecs + 30) / 60 : (totalSecs > 0 ? 1 : 0);
 
+        List<FocusSession> allSessions = focus.findByStudentId(studentId);
         Instant dayAgo = Instant.now().minus(24, ChronoUnit.HOURS);
-        long todayStudyMinutes = allSessions.stream()
+        long todaySecs = allSessions.stream()
                 .filter(s -> "COMPLETED".equals(s.getStatus()) && s.getStartedAt() != null && s.getStartedAt().isAfter(dayAgo))
-                .mapToLong(s -> s.getDurationSeconds() / 60)
+                .mapToLong(FocusSession::getDurationSeconds)
                 .sum();
+        long todayStudyMinutes = todaySecs >= 60 ? (todaySecs + 30) / 60 : (todaySecs > 0 ? 1 : 0);
 
         Instant weekAgo = Instant.now().minus(7, ChronoUnit.DAYS);
-        long weeklyStudyMinutes = allSessions.stream()
+        long weeklySecs = allSessions.stream()
                 .filter(s -> "COMPLETED".equals(s.getStatus()) && s.getStartedAt() != null && s.getStartedAt().isAfter(weekAgo))
-                .mapToLong(s -> s.getDurationSeconds() / 60)
+                .mapToLong(FocusSession::getDurationSeconds)
                 .sum();
+        long weeklyStudyMinutes = weeklySecs >= 60 ? (weeklySecs + 30) / 60 : (weeklySecs > 0 ? 1 : 0);
 
+        // Filter out trivial sessions (< 60s) for display
         List<Map<String, Object>> recentSessions = focus.findTop10ByStudentIdOrderByStartedAtDesc(studentId).stream()
-                .limit(6)
-                .map(s -> Map.<String, Object>of(
-                        "id", s.getId(),
-                        "durationMinutes", s.getDurationSeconds() / 60,
-                        "status", s.getStatus(),
-                        "startedAt", s.getStartedAt() != null ? s.getStartedAt() : Instant.now()
-                ))
+                .filter(s -> s.getDurationSeconds() >= 60)
+                .limit(10)
+                .map(s -> {
+                    String taskTitle = s.getTaskId() != null
+                            ? tasks.findById(s.getTaskId()).map(StudyTask::getTitle).orElse("Focus Session")
+                            : "General Focus & Study";
+                    return Map.<String, Object>of(
+                            "id", s.getId(),
+                            "title", taskTitle,
+                            "durationMinutes", Math.max(1, Math.round(s.getDurationSeconds() / 60.0)),
+                            "durationSeconds", s.getDurationSeconds(),
+                            "status", s.getStatus(),
+                            "startedAt", s.getStartedAt() != null ? s.getStartedAt() : Instant.now()
+                    );
+                })
                 .toList();
 
         // Tasks
         List<StudyTask> studentTasks = tasks.findByStudentIdOrderByScheduledDateAscCreatedAtDesc(studentId);
         long tasksTotal = studentTasks.size();
         long tasksCompleted = studentTasks.stream().filter(t -> "COMPLETED".equals(t.getStatus())).count();
-        double taskCompletionPercent = tasksTotal > 0 ? (100.0 * tasksCompleted / tasksTotal) : 0;
+        double taskCompletionPercent = tasksTotal > 0 ? Math.round(100.0 * tasksCompleted / tasksTotal) : 0;
 
         List<Map<String, Object>> recentTasks = studentTasks.stream()
-                .limit(6)
                 .map(t -> {
                     Map<String, Object> tMap = new HashMap<>();
                     tMap.put("id", t.getId());
@@ -226,19 +234,15 @@ public class ParentController {
                 })
                 .toList();
 
-        // Quiz attempts
+        // Quiz attempts (using same calculation as ProgressController: scored / questions)
         List<QuizAttempt> quizAttemptsList = attempts.findByStudentId(studentId);
         long quizAttempts = quizAttemptsList.size();
-        double quizAccuracyPercent = 0;
-        if (!quizAttemptsList.isEmpty()) {
-            double avg = quizAttemptsList.stream()
-                    .mapToDouble(a -> (double) a.getScore() / a.getTotalQuestions() * 100)
-                    .average().orElse(0);
-            quizAccuracyPercent = Math.round(avg * 100.0) / 100.0;
-        }
+        int scored = quizAttemptsList.stream().mapToInt(QuizAttempt::getScore).sum();
+        int questions = quizAttemptsList.stream().mapToInt(QuizAttempt::getTotalQuestions).sum();
+        double quizAccuracyPercent = questions == 0 ? 0 : Math.round(100.0 * scored / questions);
 
         List<Map<String, Object>> recentQuizzes = attempts.findTop100ByStudentIdOrderBySubmittedAtDesc(studentId).stream()
-                .limit(6)
+                .limit(10)
                 .map(a -> {
                     String title = quizzes.findById(a.getQuizId()).map(Quiz::getTitle).orElse("Quiz #" + a.getQuizId());
                     return Map.<String, Object>of(
@@ -253,9 +257,10 @@ public class ParentController {
                 })
                 .toList();
 
-        // Materials studied
-        List<Map<String, Object>> materialsStudied = materials.findTop100ByOwnerIdOrderByCreatedAtDesc(studentId).stream()
-                .limit(6)
+        // Materials studied (return all materials so count matches student library)
+        List<Material> allMaterials = materials.findTop100ByOwnerIdOrderByCreatedAtDesc(studentId);
+        long materialsTotal = allMaterials.size();
+        List<Map<String, Object>> materialsStudied = allMaterials.stream()
                 .map(m -> Map.<String, Object>of(
                         "id", m.getId(),
                         "title", m.getTitle(),
@@ -264,13 +269,18 @@ public class ParentController {
                 ))
                 .toList();
 
+        // Data-driven honest status assessment
         String statusAssessment;
-        if (studyMinutes >= 60 && quizAccuracyPercent >= 75) {
-            statusAssessment = "Outstanding engagement: consistent study habits and high accuracy.";
-        } else if (studyMinutes >= 30 || quizAccuracyPercent >= 50) {
-            statusAssessment = "Steady academic progress: active learning sessions and quiz practice.";
+        if (tasksCompleted == 0 && (quizAttempts == 0 || quizAccuracyPercent < 50)) {
+            statusAssessment = "Needs guidance: 0 tasks completed and low quiz accuracy. Support recommended to help establish daily study routines.";
+        } else if (quizAccuracyPercent < 55 && quizAttempts > 0) {
+            statusAssessment = "Review recommended: quiz accuracy is below 55%. Suggest reviewing topic summaries before retaking quizzes.";
+        } else if (studyMinutes >= 60 && taskCompletionPercent >= 60 && quizAccuracyPercent >= 75) {
+            statusAssessment = "Outstanding engagement: consistent study habits, timely task completion, and strong quiz mastery.";
+        } else if (studyMinutes >= 30 && taskCompletionPercent >= 40) {
+            statusAssessment = "Steady academic progress: active learning sessions and consistent task execution.";
         } else {
-            statusAssessment = "Getting started: encourage more focused study sessions and quizzes this week.";
+            statusAssessment = "Getting started: foundational study activity recorded. Encourage consistent daily practice.";
         }
 
         report.put("studyMinutes", studyMinutes);
@@ -278,13 +288,14 @@ public class ParentController {
         report.put("weeklyStudyMinutes", weeklyStudyMinutes);
         report.put("tasksCompleted", tasksCompleted);
         report.put("tasksTotal", tasksTotal);
-        report.put("taskCompletionPercent", Math.round(taskCompletionPercent * 100.0) / 100.0);
+        report.put("taskCompletionPercent", taskCompletionPercent);
         report.put("quizAttempts", quizAttempts);
         report.put("quizAccuracyPercent", quizAccuracyPercent);
         report.put("recentSessions", recentSessions);
         report.put("recentTasks", recentTasks);
         report.put("recentQuizzes", recentQuizzes);
         report.put("materialsStudied", materialsStudied);
+        report.put("materialsTotal", materialsTotal);
         report.put("statusAssessment", statusAssessment);
 
         return ResponseEntity.ok(report);
