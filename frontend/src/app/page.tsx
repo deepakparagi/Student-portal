@@ -103,20 +103,20 @@ export default function HomePage() {
       {/* Main Content */}
       <main id="main-content" className="flex-1 relative z-10">
         {/* HERO SECTION - FULL-WIDTH STRETCHED WITH UNIFIED 3D KNOWLEDGE CORE */}
-        <section className="relative min-h-[calc(100vh-56px)] flex items-center border-b border-border-subtle/30 overflow-hidden py-10 lg:py-16">
+        <section className="relative min-h-[calc(100vh-56px)] flex items-center border-b border-border-subtle/30 overflow-hidden py-6 lg:py-10">
           {/* Ambient lighting accents */}
           <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_70%_50%_at_20%_30%,rgba(113,133,255,0.12),transparent_70%)]" />
           <div className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_60%_50%_at_80%_40%,rgba(85,214,232,0.10),transparent_65%)]" />
 
           {/* Stretched Container spanning both left and right flanks */}
           <div className="w-full px-4 sm:px-6 lg:px-12 relative z-10">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
               
               {/* LEFT FLANK: High-Impact Typography, Value Prop, CTAs & Proof */}
               <div className="lg:col-span-7 flex flex-col items-start text-left">
                 
                 {/* Status Pill with Pulsing Local AI Beacon */}
-                <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-primary-action/30 bg-[#111E3B]/90 backdrop-blur-md mb-6 shadow-sm">
+                <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-primary-action/30 bg-[#111E3B]/90 backdrop-blur-md mb-4 shadow-sm">
                   <span className="relative flex h-2.5 w-2.5">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4ADEA6] opacity-75" />
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#4ADEA6]" />
@@ -130,7 +130,7 @@ export default function HomePage() {
                 </div>
 
                 {/* Main Headline with Crisp High-Contrast Stretched Gradients */}
-                <h1 className="text-3xl sm:text-5xl lg:text-[56px] font-bold tracking-tight text-white leading-[1.12] mb-6 font-heading">
+                <h1 className="text-3xl sm:text-4xl lg:text-[48px] font-bold tracking-tight text-white leading-[1.15] mb-4 font-heading">
                   The intelligent study portal{" "}
                   <span className="block bg-gradient-to-r from-white via-[#C4CEE4] to-[#7185FF] bg-clip-text text-transparent">
                     grounded in your actual
@@ -141,17 +141,17 @@ export default function HomePage() {
                 </h1>
 
                 {/* Subtitle - High Legibility */}
-                <p className="text-base sm:text-lg text-[#C4CEE4] leading-relaxed max-w-2xl mb-8 font-sans font-normal">
+                <p className="text-sm sm:text-base text-[#C4CEE4] leading-relaxed max-w-2xl mb-6 font-sans font-normal">
                   Upload syllabus PDFs, lecture slides, and spreadsheets. Smart Study parses verified content, crafts active recall quizzes with citations, and guides focused study blocks without generic AI guesses.
                 </p>
 
                 {/* Primary CTAs with Luminous Periwinkle Hover */}
-                <div className="flex flex-wrap items-center gap-3.5 mb-10 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-3 mb-6 w-full sm:w-auto">
                   <Button
                     variant="primary"
                     href="/register"
                     size="default"
-                    className="px-6 py-3 text-[14px] font-semibold shadow-[0_0_24px_rgba(113,133,255,0.4)] hover:shadow-[0_0_32px_rgba(113,133,255,0.6)] transition-all transform hover:-translate-y-0.5"
+                    className="px-6 py-2.5 text-[14px] font-semibold shadow-[0_0_24px_rgba(113,133,255,0.4)] hover:shadow-[0_0_32px_rgba(113,133,255,0.6)] transition-all transform hover:-translate-y-0.5"
                   >
                     Start Learning Free <ArrowRight size={15} className="ml-2" />
                   </Button>
@@ -159,7 +159,7 @@ export default function HomePage() {
                     variant="secondary"
                     href="/dashboard"
                     size="default"
-                    className="px-5 py-3 text-[14px] font-medium border border-border-subtle bg-[#111E3B]/80 hover:bg-[#1A2A4B] text-white hover:border-primary-action/40 transition-all shadow-md"
+                    className="px-5 py-2.5 text-[14px] font-medium border border-border-subtle bg-[#111E3B]/80 hover:bg-[#1A2A4B] text-white hover:border-primary-action/40 transition-all shadow-md"
                   >
                     <Compass size={15} className="mr-2 text-ai-accent" /> Explore Dashboard
                   </Button>
@@ -173,26 +173,26 @@ export default function HomePage() {
                 </div>
 
                 {/* Trust & Grounding Proof Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 w-full pt-6 border-t border-border-subtle/50 text-xs text-text-secondary">
-                  <div className="flex items-center gap-2.5 rounded-xl border border-border-subtle/70 bg-[#0D1731]/80 px-3.5 py-2.5 backdrop-blur-md shadow-sm">
-                    <CheckCircle2 size={16} className="text-[#4ADEA6] shrink-0" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 w-full pt-4 border-t border-border-subtle/50 text-xs text-text-secondary">
+                  <div className="flex items-center gap-2.5 rounded-xl border border-border-subtle/70 bg-[#0D1731]/80 px-3 py-2 backdrop-blur-md shadow-sm">
+                    <CheckCircle2 size={15} className="text-[#4ADEA6] shrink-0" />
                     <div>
                       <span className="font-semibold text-white block text-xs">100% Local Inference</span>
-                      <span className="text-[11px] text-[#8998B7]">ChromaDB + Ollama</span>
+                      <span className="text-[10px] text-[#8998B7]">ChromaDB + Ollama</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2.5 rounded-xl border border-border-subtle/70 bg-[#0D1731]/80 px-3.5 py-2.5 backdrop-blur-md shadow-sm">
-                    <FileCheck size={16} className="text-[#55D6E8] shrink-0" />
+                  <div className="flex items-center gap-2.5 rounded-xl border border-border-subtle/70 bg-[#0D1731]/80 px-3 py-2 backdrop-blur-md shadow-sm">
+                    <FileCheck size={15} className="text-[#55D6E8] shrink-0" />
                     <div>
                       <span className="font-semibold text-white block text-xs">Exact Citations</span>
-                      <span className="text-[11px] text-[#8998B7]">Page & slide verified</span>
+                      <span className="text-[10px] text-[#8998B7]">Page & slide verified</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2.5 rounded-xl border border-border-subtle/70 bg-[#0D1731]/80 px-3.5 py-2.5 backdrop-blur-md shadow-sm col-span-2 sm:col-span-1">
-                    <ShieldCheck size={16} className="text-[#7185FF] shrink-0" />
+                  <div className="flex items-center gap-2.5 rounded-xl border border-border-subtle/70 bg-[#0D1731]/80 px-3 py-2 backdrop-blur-md shadow-sm col-span-2 sm:col-span-1">
+                    <ShieldCheck size={15} className="text-[#7185FF] shrink-0" />
                     <div>
                       <span className="font-semibold text-white block text-xs">Parent Progress</span>
-                      <span className="text-[11px] text-[#8998B7]">Audit ledger & review</span>
+                      <span className="text-[10px] text-[#8998B7]">Audit ledger & review</span>
                     </div>
                   </div>
                 </div>
@@ -200,52 +200,61 @@ export default function HomePage() {
               </div>
 
               {/* RIGHT FLANK: Spatial Frame Showcasing the Background 3D Knowledge Core */}
-              <div className="lg:col-span-5 relative mt-6 lg:mt-0 min-h-[460px] flex flex-col justify-between">
+              <div className="lg:col-span-5 relative mt-4 lg:mt-0 flex flex-col justify-between rounded-2xl border border-border-subtle/70 bg-[#0B1328]/70 backdrop-blur-xl p-4 sm:p-5 shadow-2xl overflow-hidden">
                 {/* Floating Ambient Glow */}
-                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-[#7185FF]/20 via-[#55D6E8]/20 to-[#4ADEA6]/15 blur-xl opacity-60 pointer-events-none" />
+                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-[#7185FF]/15 via-[#55D6E8]/15 to-[#4ADEA6]/10 blur-xl opacity-50 pointer-events-none" />
 
                 {/* Top Telemetry Header Bar */}
-                <div className="relative z-10 flex items-center justify-between p-3.5 rounded-xl border border-border-bright/60 bg-[#0B1328]/85 backdrop-blur-xl shadow-xl">
+                <div className="relative z-10 flex items-center justify-between pb-3 border-b border-border-subtle/50">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5">
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#FB7185]" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#F6C56B]" />
-                      <span className="h-2.5 w-2.5 rounded-full bg-[#4ADEA6]" />
+                      <span className="h-2 w-2 rounded-full bg-[#FB7185]" />
+                      <span className="h-2 w-2 rounded-full bg-[#F6C56B]" />
+                      <span className="h-2 w-2 rounded-full bg-[#4ADEA6]" />
                     </div>
-                    <span className="text-xs font-mono font-medium text-white ml-2">
+                    <span className="text-xs font-mono font-medium text-white ml-1.5">
                       ai-knowledge-core.mesh
                     </span>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#55D6E8] animate-pulse" />
-                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#55D6E8] bg-[#55D6E8]/10 px-2 py-0.5 rounded border border-[#55D6E8]/30">
-                      Unified 3D Scroll
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-[#55D6E8] bg-[#55D6E8]/10 px-2 py-0.5 rounded border border-[#55D6E8]/30">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#55D6E8] animate-pulse" />
+                      Local GPU Active
                     </span>
                   </div>
                 </div>
 
                 {/* Open Viewport Window framing the 3D model */}
-                <div className="relative my-4 h-64 sm:h-72 pointer-events-none flex items-center justify-center">
-                  {/* Subtle target reticle to frame the 3D core */}
-                  <div className="w-60 h-60 rounded-full border border-dashed border-[#7185FF]/30 animate-spin [animation-duration:50s]" />
-                  <div className="absolute w-44 h-44 rounded-full border border-[#55D6E8]/20" />
+                <div className="relative h-60 sm:h-64 pointer-events-none flex items-center justify-center">
+                  <div className="absolute top-2 left-2 text-[9px] font-mono text-[#55D6E8]/70 uppercase tracking-wider">
+                    [RTX 3050 · 4GB VRAM]
+                  </div>
+                  <div className="absolute top-2 right-2 text-[9px] font-mono text-[#4ADEA6]/70">
+                    ⚡ 18ms Latency
+                  </div>
+                  <div className="absolute bottom-2 left-2 text-[9px] font-mono text-[#C4CEE4]/60">
+                    Cellular Biology · p. 42
+                  </div>
+                  <div className="absolute bottom-2 right-2 text-[9px] font-mono text-[#7185FF]/70">
+                    0.984 Cosine Sim
+                  </div>
                 </div>
 
                 {/* Stretched HUD Info Badges below the 3D core */}
-                <div className="relative z-10 grid grid-cols-2 gap-3 text-xs">
-                  <div className="rounded-xl border border-border-subtle/80 bg-[#0B1328]/90 p-3 backdrop-blur-md shadow-xl">
+                <div className="relative z-10 grid grid-cols-2 gap-2.5 text-xs pt-3 border-t border-border-subtle/50">
+                  <div className="rounded-xl border border-border-subtle/80 bg-[#080D1C]/80 p-3 backdrop-blur-md shadow-sm">
                     <div className="flex items-center gap-1.5 text-text-muted text-[11px] font-mono mb-1">
-                      <Database size={12} className="text-[#55D6E8]" /> Vector Embeddings
+                      <Database size={12} className="text-[#55D6E8]" /> Vector Store
                     </div>
                     <div className="font-semibold text-white text-[13px]">
                       128-dim Cosine Sim
                     </div>
                     <div className="text-[11px] text-[#4ADEA6] font-mono mt-0.5">
-                      0.984 Confidence
+                      323 Indexed Chunks
                     </div>
                   </div>
 
-                  <div className="rounded-xl border border-border-subtle/80 bg-[#0B1328]/90 p-3 backdrop-blur-md shadow-xl">
+                  <div className="rounded-xl border border-border-subtle/80 bg-[#080D1C]/80 p-3 backdrop-blur-md shadow-sm">
                     <div className="flex items-center gap-1.5 text-text-muted text-[11px] font-mono mb-1">
                       <Brain size={12} className="text-[#7185FF]" /> Active Recall
                     </div>
@@ -253,30 +262,8 @@ export default function HomePage() {
                       Spaced Repetition
                     </div>
                     <div className="text-[11px] text-[#55D6E8] font-mono mt-0.5">
-                      5 Target Subjects
+                      Zero Cloud Leak
                     </div>
-                  </div>
-                </div>
-
-                {/* Floating HUD Badge (Top-Left) */}
-                <div className="hidden sm:flex absolute top-14 -left-4 items-center gap-2 rounded-xl border border-[#55D6E8]/40 bg-[#080D1C]/95 px-3 py-1.5 shadow-2xl backdrop-blur-md z-20">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#55D6E8]/20 text-[#55D6E8]">
-                    ✓
-                  </span>
-                  <div className="text-[11px] leading-tight">
-                    <div className="font-semibold text-white">Verified Citation</div>
-                    <div className="text-[10px] text-[#55D6E8] font-mono">Cellular Biology · p. 42</div>
-                  </div>
-                </div>
-
-                {/* Floating HUD Badge (Bottom-Right) */}
-                <div className="hidden sm:flex absolute bottom-24 -right-3 items-center gap-2 rounded-xl border border-[#7185FF]/40 bg-[#080D1C]/95 px-3 py-1.5 shadow-2xl backdrop-blur-md z-20">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#7185FF]/20 text-[#7185FF]">
-                    ⚡
-                  </span>
-                  <div className="text-[11px] leading-tight">
-                    <div className="font-semibold text-white">Local RAG Latency</div>
-                    <div className="text-[10px] text-[#7185FF] font-mono">18ms · Zero Cloud Leak</div>
                   </div>
                 </div>
 

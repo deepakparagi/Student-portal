@@ -92,85 +92,7 @@ export default function QuizzesPage() {
   const [topicInput, setTopicInput] = useState("");
   const [questionCount, setQuestionCount] = useState(5);
 
-  // AI Engine & API Key Configuration State
-  const [apiKey, setApiKey] = useState("");
-  const [selectedModel, setSelectedModel] = useState("nvidia/nemotron-3-ultra-550b-a55b:free");
-  const [showAiModal, setShowAiModal] = useState(false);
-  const [keyInput, setKeyInput] = useState("");
-  const [showKeyText, setShowKeyText] = useState(false);
-  const [testingKey, setTestingKey] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    valid: boolean;
-    message?: string;
-    error?: string;
-    provider?: string;
-    model?: string;
-  } | null>(null);
 
-  // Load saved key & model on mount
-  useEffect(() => {
-    try {
-      const storedKey = localStorage.getItem("smartstudy_llm_api_key");
-      const storedModel = localStorage.getItem("smartstudy_llm_model");
-      const envKey = process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || "";
-      const envModel = process.env.NEXT_PUBLIC_OPENROUTER_MODEL || "nvidia/nemotron-3-ultra-550b-a55b:free";
-
-      const effectiveKey = storedKey || envKey;
-      const effectiveModel = storedModel && storedModel !== "openrouter/free" ? storedModel : envModel;
-
-      setApiKey(effectiveKey);
-      setKeyInput(effectiveKey);
-      setSelectedModel(effectiveModel);
-    } catch {}
-  }, []);
-
-  async function testConnection(keyToTest: string, modelToTest: string) {
-    setTestingKey(true);
-    setTestResult(null);
-    try {
-      const res = await fetch(`${API}/quizzes/test-key`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey: keyToTest.trim(),
-          model: modelToTest,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.valid === false) {
-        setTestResult({
-          valid: false,
-          error: data.error || data.message || `Verification failed (HTTP ${res.status})`,
-        });
-      } else {
-        setTestResult({
-          valid: true,
-          message: data.message || `Connected to ${data.provider ?? "AI"} (${data.model ?? modelToTest})`,
-          provider: data.provider,
-          model: data.model,
-        });
-      }
-    } catch (e) {
-      setTestResult({
-        valid: false,
-        error: e instanceof Error ? e.message : "Failed to reach test endpoint",
-      });
-    } finally {
-      setTestingKey(false);
-    }
-  }
-
-  function saveAiSettings() {
-    const trimmed = keyInput.trim();
-    setApiKey(trimmed);
-    try {
-      localStorage.setItem("smartstudy_llm_api_key", trimmed);
-      localStorage.setItem("smartstudy_llm_model", selectedModel);
-    } catch {}
-    setShowAiModal(false);
-    setNotice(`AI engine configured with model "${selectedModel}".`);
-  }
 
   const loadData = useCallback(async () => {
     try {
@@ -221,14 +143,10 @@ export default function QuizzesPage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          ...(apiKey ? { "X-LLM-Api-Key": apiKey, "X-OpenRouter-Api-Key": apiKey } : {}),
-          ...(selectedModel ? { "X-LLM-Model": selectedModel } : {}),
         },
         body: JSON.stringify({
           topic: formTopic,
           count: questionCount,
-          model: selectedModel,
-          apiKey: apiKey || undefined,
         }),
       });
 
@@ -261,13 +179,9 @@ export default function QuizzesPage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          ...(apiKey ? { "X-LLM-Api-Key": apiKey, "X-OpenRouter-Api-Key": apiKey } : {}),
-          ...(selectedModel ? { "X-LLM-Model": selectedModel } : {}),
         },
         body: JSON.stringify({
           count: questionCount,
-          model: selectedModel,
-          apiKey: apiKey || undefined,
         }),
       });
 
@@ -365,37 +279,17 @@ export default function QuizzesPage() {
           title="Practice Quizzes"
           description="Source-grounded evaluations generated from your notes with verified citations and rationale."
           actions={
-            <div className="flex items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setKeyInput(apiKey);
-                  setTestResult(null);
-                  setShowAiModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 text-xs"
-                title="Configure AI Model & API Key"
-              >
-                <Settings size={13} className="text-amber-400" />
-                <span>
-                  {selectedModel.includes("nemotron-3-ultra-550b")
-                    ? "Nemotron 3 Ultra 550B (Free)"
-                    : selectedModel.includes("llama-3.3-70b")
-                    ? "Llama 3.3 70B (Groq)"
-                    : selectedModel === "openrouter/free"
-                    ? "Auto Free (OpenRouter)"
-                    : selectedModel.includes("gemma-4-31b")
-                    ? "Gemma 4 31B"
-                    : selectedModel === "smartstudy-tutor"
-                    ? "Local Ollama"
-                    : selectedModel.split("/").pop()?.replace(":free", "")}
+            <div className="flex items-center gap-2.5">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0F1A36] border border-border-subtle/80 text-xs text-[#C4CEE4]">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#4ADEA6] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#4ADEA6]" />
                 </span>
-                {apiKey ? (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" title="API Key Configured" />
-                ) : (
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" title="Default Model" />
-                )}
-              </Button>
+                <span className="font-medium text-white">SmartStudy Tutor</span>
+                <span className="text-[10px] text-[#55D6E8] bg-[#55D6E8]/10 px-1.5 py-0.5 rounded border border-[#55D6E8]/20 font-mono">
+                  Active
+                </span>
+              </div>
               <Button
                 variant="secondary"
                 onClick={() => fileInputRef.current?.click()}
@@ -417,44 +311,6 @@ export default function QuizzesPage() {
         />
 
         {/* Feedback alerts */}
-        {!apiKey && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3.5 rounded-xl bg-brand-raised/90 border border-brand-accent/40 mb-6 text-xs text-brand-light shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-brand-accent/30 text-brand-neutral shrink-0">
-                <Sparkles size={16} />
-              </div>
-              <div>
-                <span className="font-semibold text-brand-light">Recommended Model: Groq Cloud (Llama 3.3 70B)</span>
-                <p className="text-[11px] text-brand-muted mt-0.5">
-                  Generate quizzes in &lt;1 second with Meta's 70B flagship model. 100% Free (14,400 requests/day).
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-              <a
-                href="https://console.groq.com/keys"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] text-brand-neutral hover:text-brand-light font-medium px-2.5 py-1.5 rounded-lg border border-brand-neutral/30 hover:bg-brand-raised transition-colors"
-              >
-                Get Free Key <ExternalLink size={10} />
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setKeyInput(apiKey);
-                  setTestResult(null);
-                  setShowAiModal(true);
-                }}
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium bg-brand-accent text-brand-primary font-semibold px-3 py-1.5 rounded-lg hover:brightness-110 transition-all shadow-sm"
-              >
-                <Settings size={12} />
-                Connect Key
-              </button>
-            </div>
-          </div>
-        )}
-
         {notice && (
           <div
             role="status"
@@ -739,252 +595,6 @@ export default function QuizzesPage() {
         onCancel={() => setDeleteTarget(null)}
       />
 
-      {/* AI Model & API Key Settings Modal */}
-      {showAiModal && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
-          <div className="modal-dialog max-w-lg bg-brand-secondary border border-brand-neutral/20 rounded-xl p-5 sm:p-6 shadow-2xl relative animate-in fade-in zoom-in-95 duration-150">
-            <button
-              type="button"
-              onClick={() => setShowAiModal(false)}
-              className="absolute top-4 right-4 text-brand-muted hover:text-brand-light transition-colors"
-              aria-label="Close modal"
-            >
-              <X size={18} />
-            </button>
-
-            <div className="flex items-center gap-2.5 mb-1">
-              <div className="grid w-8 h-8 place-items-center rounded-lg bg-brand-raised border border-brand-neutral/20 text-amber-400 shrink-0">
-                <Zap size={16} />
-              </div>
-              <div>
-                <h3 id="ai-modal-title" className="text-base font-semibold text-brand-light">
-                  AI Quiz Engine & Free API Key
-                </h3>
-                <p className="text-xs text-brand-neutral">
-                  Select the best free model to formulate active recall questions.
-                </p>
-              </div>
-            </div>
-
-            {/* Provider Options */}
-            <div className="mt-4 space-y-2.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-brand-neutral">
-                Free Models & Providers
-              </div>
-
-              {/* Groq Cloud (Recommended) */}
-              <div
-                onClick={() => {
-                  setSelectedModel("llama-3.3-70b-versatile");
-                  if (!keyInput.startsWith("gsk_") && keyInput.startsWith("sk-or-")) {
-                    setKeyInput("");
-                  }
-                }}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  selectedModel === "llama-3.3-70b-versatile"
-                    ? "bg-brand-raised border-amber-400/50 shadow-sm"
-                    : "bg-brand-primary/40 border-brand-neutral/15 hover:border-brand-neutral/30"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5 font-medium text-xs text-brand-light">
-                    <span className="text-amber-400 font-bold">⚡ Groq:</span> Llama 3.3 70B Versatile
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-semibold">
-                    Fastest (300 t/s)
-                  </span>
-                </div>
-                <p className="text-[11px] text-brand-muted">
-                  14,400 free requests/day. Meta's 70B model generates exams in &lt;1 second.
-                </p>
-                <div className="mt-1.5 flex items-center justify-between">
-                  <span className="text-[10px] text-brand-neutral">
-                    Key prefix: <code className="text-amber-300">gsk_...</code>
-                  </span>
-                  <a
-                    href="https://console.groq.com/keys"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-amber-400 hover:text-amber-300 font-medium"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    Get Free Key <ExternalLink size={10} />
-                  </a>
-                </div>
-              </div>
-
-              {/* NVIDIA Nemotron 3 Ultra 550B (User Preferred) */}
-              <div
-                onClick={() => setSelectedModel("nvidia/nemotron-3-ultra-550b-a55b:free")}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  selectedModel === "nvidia/nemotron-3-ultra-550b-a55b:free"
-                    ? "bg-brand-raised border-emerald-400/50 shadow-sm"
-                    : "bg-brand-primary/40 border-brand-neutral/15 hover:border-brand-neutral/30"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5 font-medium text-xs text-brand-light">
-                    <span className="text-emerald-400 font-bold">🚀 OpenRouter:</span> NVIDIA Nemotron 3 Ultra 550B
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold">
-                    Free 550B
-                  </span>
-                </div>
-                <p className="text-[11px] text-brand-muted">
-                  Massive 550B parameter model with rigorous factual accuracy and complex academic reasoning.
-                </p>
-                <div className="mt-1.5 flex items-center justify-between">
-                  <span className="text-[10px] text-brand-neutral">
-                    Key prefix: <code className="text-emerald-300">sk-or-...</code>
-                  </span>
-                  <a
-                    href="https://openrouter.ai/models?q=free"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] text-emerald-400 hover:text-emerald-300 font-medium"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    View Free Models <ExternalLink size={10} />
-                  </a>
-                </div>
-              </div>
-
-              {/* OpenRouter Auto-Free */}
-              <div
-                onClick={() => setSelectedModel("openrouter/free")}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  selectedModel === "openrouter/free"
-                    ? "bg-brand-raised border-amber-400/50 shadow-sm"
-                    : "bg-brand-primary/40 border-brand-neutral/15 hover:border-brand-neutral/30"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5 font-medium text-xs text-brand-light">
-                    <span className="text-sky-400 font-bold">🌐 OpenRouter:</span> Auto-Free Pool
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-300 border border-sky-500/20 font-semibold">
-                    Free Tier
-                  </span>
-                </div>
-                <p className="text-[11px] text-brand-muted">
-                  Automatically routes across active zero-cost models (Gemma 4 31B, Nemotron, Llama).
-                </p>
-              </div>
-
-              {/* Local Ollama */}
-              <div
-                onClick={() => {
-                  setSelectedModel("smartstudy-tutor");
-                  setKeyInput("");
-                }}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  selectedModel === "smartstudy-tutor"
-                    ? "bg-brand-raised border-amber-400/50 shadow-sm"
-                    : "bg-brand-primary/40 border-brand-neutral/15 hover:border-brand-neutral/30"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5 font-medium text-xs text-brand-light">
-                    <span className="text-emerald-400 font-bold">💻 Local AI:</span> SmartStudy Tutor (Ollama)
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold">
-                    100% Offline
-                  </span>
-                </div>
-                <p className="text-[11px] text-brand-muted">
-                  Runs directly on localhost:11434 with zero external requests or rate limits.
-                </p>
-              </div>
-            </div>
-
-            {/* API Key Input */}
-            {selectedModel !== "smartstudy-tutor" && (
-              <div className="mt-4">
-                <label className="block text-xs font-medium text-brand-neutral mb-1.5">
-                  {selectedModel.startsWith("llama") ? "Groq API Key" : "API Key"}
-                </label>
-                <div className="relative flex items-center">
-                  <input
-                    type={showKeyText ? "text" : "password"}
-                    value={keyInput}
-                    onChange={(e) => setKeyInput(e.target.value)}
-                    placeholder={selectedModel.startsWith("llama") ? "gsk_..." : "sk-or-... or gsk_..."}
-                    className="w-full bg-brand-raised border border-brand-neutral/25 rounded-lg pl-3 pr-10 py-2 text-xs text-brand-light placeholder:text-brand-muted focus:outline-none focus:border-brand-neutral/40 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKeyText(!showKeyText)}
-                    className="absolute right-2.5 text-brand-muted hover:text-brand-light transition-colors"
-                    aria-label={showKeyText ? "Hide key" : "Show key"}
-                  >
-                    {showKeyText ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Test Connection Button & Result */}
-            <div className="mt-4 pt-3 border-t border-brand-neutral/20 flex flex-col gap-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => void testConnection(keyInput, selectedModel)}
-                  disabled={testingKey}
-                  className="text-xs"
-                >
-                  {testingKey ? (
-                    <>
-                      <Loader2 size={12} className="animate-spin mr-1.5" /> Testing...
-                    </>
-                  ) : (
-                    "Test Connection"
-                  )}
-                </Button>
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowAiModal(false)}
-                    className="text-xs text-brand-muted hover:text-brand-light"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={saveAiSettings}
-                    className="text-xs"
-                  >
-                    Save & Apply
-                  </Button>
-                </div>
-              </div>
-
-              {testResult && (
-                <div
-                  className={`p-2.5 rounded-lg text-xs flex items-start gap-2 ${
-                    testResult.valid
-                      ? "bg-emerald-950/40 border border-emerald-500/25 text-emerald-300"
-                      : "bg-rose-950/40 border border-rose-500/25 text-rose-300"
-                  }`}
-                >
-                  {testResult.valid ? (
-                    <CheckCircle2 size={14} className="shrink-0 text-emerald-400 mt-0.5" />
-                  ) : (
-                    <AlertCircle size={14} className="shrink-0 text-rose-400 mt-0.5" />
-                  )}
-                  <div className="flex-1">
-                    <p className="font-medium">{testResult.valid ? "Verified!" : "Check Failed"}</p>
-                    <p className="text-[11px] opacity-90 mt-0.5">{testResult.message || testResult.error}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
   );
 }
