@@ -14,6 +14,7 @@ class TutorQualityTests(unittest.IsolatedAsyncioTestCase):
                 "server": "healthy",
                 "chat_model": {"available": True},
             }),
+            verify_model=AsyncMock(return_value=True),
             chat=AsyncMock(return_value={
                 "model": "smartstudy-tutor",
                 "message": {"content": "The scholarship pays 18,450 rupees per semester."},

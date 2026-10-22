@@ -132,12 +132,12 @@ export default function TutorPage() {
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
   const [showSourceModal, setShowSourceModal] = useState<{ source: TutorSource; messageId: string | number } | null>(null);
   const [loadingConvId, setLoadingConvId] = useState<string | null>(null);
-  const [selectedModel, setSelectedModel] = useState<string>("smartstudy-tutor");
-
-  useEffect(() => {
-    const saved = localStorage.getItem("ai_tutor_model");
-    if (saved) setSelectedModel(saved);
-  }, []);
+  const [selectedModel, setSelectedModel] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("ai_tutor_model") || "smartstudy-tutor";
+    }
+    return "smartstudy-tutor";
+  });
 
   const handleModelChange = (m: string) => {
     setSelectedModel(m);
@@ -146,12 +146,11 @@ export default function TutorPage() {
 
   // Sync conversations list from server without wiping already-loaded messages or active local chats
   useEffect(() => {
-    if (!conversationsData || conversationsData.length === 0) {
-      setConversations((prev) => prev.filter((c) => c.id.startsWith("conv-")));
-      return;
-    }
-
     const timeoutId = window.setTimeout(() => {
+      if (!conversationsData || conversationsData.length === 0) {
+        setConversations((prev) => prev.filter((c) => c.id.startsWith("conv-")));
+        return;
+      }
       setConversations((prev) => {
         const prevMap = new Map(prev.map((c) => [c.id, c]));
         const localConvs = prev.filter((c) => c.id.startsWith("conv-"));

@@ -120,11 +120,16 @@ export default function AnalyticsPage() {
 
   // Regular periodic sync every 3 seconds
   useEffect(() => {
-    void load();
+    const timer = setTimeout(() => {
+      void load();
+    }, 0);
     const interval = setInterval(() => {
       void load();
     }, 3000);
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+    };
   }, [load]);
 
   // Window visibility & focus sync

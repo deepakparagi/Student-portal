@@ -45,7 +45,7 @@ class ServiceTests(unittest.TestCase):
         from app.main import flashcards, questions, FlashcardsRequest, QuestionsRequest
         source="Photosynthesis is the process by which plants convert light into chemical energy. Respiration is the process organisms use to release energy from food."
         cards=flashcards(FlashcardsRequest(text=source))["flashcards"]
-        quiz=questions(QuestionsRequest(text=source))["questions"]
+        quiz=self.run_async(questions(QuestionsRequest(text=source)))["questions"]
         self.assertGreaterEqual(len(cards),2)
         self.assertEqual(len(quiz),2)  # One question per definition pair
         self.assertIn(quiz[0]["correct_answer"], quiz[0]["options"])
@@ -58,7 +58,7 @@ class ServiceTests(unittest.TestCase):
             patch("app.main.fetch_topic_encyclopedia_data", return_value=(None, None)),
             patch("app.main.generate_encyclopedic_quiz", return_value=[]),
         ):
-            quiz = questions(QuestionsRequest(topic="Operating Systems", count=3))["questions"]
+            quiz = self.run_async(questions(QuestionsRequest(topic="Operating Systems", count=3)))["questions"]
         self.assertEqual(len(quiz), 3)
         self.assertTrue("operating system" in quiz[0]["question"].lower())
         self.assertEqual(len(quiz[0]["options"]), 4)
