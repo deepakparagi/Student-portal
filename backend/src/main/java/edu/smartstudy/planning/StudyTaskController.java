@@ -80,6 +80,18 @@ public class StudyTaskController {
         }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @RequestMapping(value = "/{id}/toggle", method = {RequestMethod.POST, RequestMethod.PATCH})
+    public ResponseEntity<?> toggle(@PathVariable Long id, Authentication a) {
+        return tasks.findByIdAndStudentId(id, owner(a)).<ResponseEntity<?>>map(t -> {
+            if ("COMPLETED".equalsIgnoreCase(t.getStatus())) {
+                t.reopen();
+            } else {
+                t.complete();
+            }
+            return ResponseEntity.ok(tasks.save(t));
+        }).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> delete(@PathVariable Long id, Authentication a) {
         var t = tasks.findByIdAndStudentId(id, owner(a));

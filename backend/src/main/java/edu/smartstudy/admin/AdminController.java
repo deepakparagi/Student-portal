@@ -197,7 +197,7 @@ public class AdminController {
         );
     }
 
-    @GetMapping("/system")
+    @GetMapping({"/system", "/overview"})
     public Map<String, Object> system() {
         Map<String, Long> docStates = new LinkedHashMap<>();
         for (String s : List.of("UPLOADED", "PROCESSING", "COMPLETED", "FAILED")) {

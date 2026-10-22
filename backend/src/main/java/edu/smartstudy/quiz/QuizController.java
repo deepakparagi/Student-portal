@@ -150,7 +150,7 @@ public class QuizController {
                 ? input.model().trim()
                 : (clientLlmModel != null && !clientLlmModel.isBlank())
                     ? clientLlmModel.trim()
-                    : "nvidia/nemotron-3-ultra-550b-a55b:free";
+                    : "smartstudy-tutor";
 
         boolean isLocal = model != null && (model.equalsIgnoreCase("smartstudy-tutor") || model.equalsIgnoreCase("local") || model.toLowerCase().startsWith("ollama"));
 
@@ -246,7 +246,15 @@ public class QuizController {
 
         String quizTitle = !topicName.isBlank() ? "Quiz on " + topicName : "Quiz on " + material.getTitle();
         Quiz quiz = new Quiz(student, material.getId(), quizTitle, json.writeValueAsString(questions));
-        return ResponseEntity.status(201).body(quizzes.save(quiz));
+        Quiz saved = quizzes.save(quiz);
+        Map<String, Object> resp = new HashMap<>();
+        resp.put("id", saved.getId());
+        resp.put("title", saved.getTitle());
+        resp.put("materialId", saved.getMaterialId());
+        resp.put("questions", questions);
+        resp.put("questionsJson", saved.getQuestionsJson());
+        resp.put("createdAt", saved.getCreatedAt() != null ? saved.getCreatedAt() : java.time.Instant.now());
+        return ResponseEntity.status(201).body(resp);
     }
 
     @PostMapping("/generate/{materialId}")

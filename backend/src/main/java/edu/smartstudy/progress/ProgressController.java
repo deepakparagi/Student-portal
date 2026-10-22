@@ -10,7 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/progress")
+@RequestMapping({"/api/v1/progress", "/api/v1/analytics"})
 public class ProgressController {
     private final UserRepository users;
     private final StudyTaskRepository tasks;
@@ -24,7 +24,7 @@ public class ProgressController {
         this.attempts = attempts;
     }
 
-    @GetMapping("/overview")
+    @GetMapping({"/overview", "/summary"})
     public Map<String, Object> overview(Authentication auth) {
         Long id = users.findByEmailIgnoreCase(auth.getName()).orElseThrow().getId();
         long totalTasks = tasks.countByStudentId(id);

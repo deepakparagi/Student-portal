@@ -16,7 +16,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/parents")
+@RequestMapping({"/api/v1/parents", "/api/v1/parent"})
 public class ParentController {
     private final ParentStudentLinkRepository links;
     private final UserRepository users;
@@ -162,6 +162,17 @@ public class ParentController {
                 }).orElse(null))
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    @GetMapping({"/overview", "/dashboard"})
+    @PreAuthorize("hasRole('PARENT')")
+    public ResponseEntity<?> overview(Authentication auth) {
+        Long parentId = id(auth);
+        List<Map<String, Object>> kids = children(auth);
+        return ResponseEntity.ok(Map.of(
+                "parent", user(users.findById(parentId).orElseThrow()),
+                "students", kids
+        ));
     }
 
     @GetMapping("/children/{studentId}/progress")

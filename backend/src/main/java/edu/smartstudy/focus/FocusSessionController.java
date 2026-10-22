@@ -10,7 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/focus/sessions")
+@RequestMapping({"/api/v1/focus/sessions", "/api/v1/focus"})
 public class FocusSessionController {
     private final FocusSessionRepository sessions;
     private final UserRepository users;
@@ -63,7 +63,7 @@ public class FocusSessionController {
         return update(id, a, FocusSession::resume);
     }
 
-    @PostMapping({"/{id}/finish", "/{id}/stop"})
+    @PostMapping({"/{id}/finish", "/{id}/stop", "/{id}/end"})
     public ResponseEntity<?> finish(@PathVariable Long id, Authentication a) {
         return update(id, a, FocusSession::finish);
     }

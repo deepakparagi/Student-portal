@@ -60,12 +60,14 @@ public class AuthController {
     public record DeleteAccount(@NotBlank String password) {}
 
     private ResponseEntity<?> session(User user) {
-        var cookie = ResponseCookie.from("study_session", tokens.issue(user))
+        String token = tokens.issue(user);
+        var cookie = ResponseCookie.from("study_session", token)
                 .httpOnly(true).secure(cookieSecure).sameSite("Lax").path("/").maxAge(3600).build();
         return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
                 .body(Map.of("id", user.getId(), "name", user.getName(), "email", user.getEmail(),
                         "role", user.getRole(), "timezone", user.getTimezone(),
-                        "emailVerified", user.isEmailVerified()));
+                        "emailVerified", user.isEmailVerified(),
+                        "token", token));
     }
 
     private String hashToken(byte[] token) {

@@ -124,7 +124,7 @@ public class TutorController {
         }
     }
 
-    @PostMapping("/ask")
+    @PostMapping({"/ask", "/chat"})
     public ResponseEntity<?> ask(
             @RequestBody @Valid AskRequest input,
             @RequestHeader(value = "X-OpenRouter-Api-Key", required = false) String clientOpenRouterApiKey,
