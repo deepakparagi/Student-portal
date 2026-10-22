@@ -10,7 +10,7 @@ if (-not $mysqlPortCheck) {
     Write-Host "[1/4] Starting MySQL Server (Port 3307)..." -ForegroundColor Yellow
     $mysqldPath = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe"
     $dataDir = "$PSScriptRoot\mysql-fresh-data"
-    Start-Process -FilePath $mysqldPath -ArgumentList "--datadir=`"$dataDir`"", "--port=3307", "--bind-address=127.0.0.1", "--shared-memory=OFF", "--named-pipe=OFF", "--console" -WindowStyle Minimized
+    Start-Process -FilePath $mysqldPath -ArgumentList "--datadir=`"$dataDir`"", "--port=3307", "--mysqlx=0", "--bind-address=127.0.0.1", "--shared-memory=OFF", "--named-pipe=OFF", "--console" -WindowStyle Minimized
     Start-Sleep -Seconds 3
 } else {
     Write-Host "[1/4] MySQL is already running on port 3307." -ForegroundColor Green
