@@ -706,7 +706,7 @@ export default function TutorPage() {
               {/* Model Pill */}
               <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-brand-muted">
                 <span className={`w-1.5 h-1.5 rounded-full ${isOllamaHealthy ? "bg-emerald-400" : "bg-red-400"}`} />
-                <span>smartstudy-tutor (Local AI)</span>
+                <span>smartstudy-tutor (Qwen 3.5 • Local GPU)</span>
               </div>
             </div>
           </div>
@@ -847,7 +847,7 @@ export default function TutorPage() {
             {isTyping && (
               <div className="flex items-center gap-2 w-full text-xs text-brand-muted p-2">
                 <Loader2 size={13} className="animate-spin text-brand-neutral" />
-                <span>Generating response with smartstudy-tutor...</span>
+                <span>Generating response with smartstudy-tutor (Qwen 3.5)...</span>
               </div>
             )}
 
