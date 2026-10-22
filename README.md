@@ -1,6 +1,13 @@
 # Smart Study Portal
 
-An intelligent, full-stack educational platform featuring deterministic NLP document processing, spaced-repetition flashcards, dynamic quizzes, automated study planning, focus tracking, an AI tutor, and dedicated parent and administrative portals.
+An intelligent, full-stack educational platform featuring deterministic NLP document processing, dynamic quizzes with factual entity grounding, automated study planning, drift-free focus tracking, an in-progress AI tutor and document summarizer, and dedicated parent and administrative portals.
+
+> 📚 **Project Documentation & Presentation Deck:**<br>
+> • **Word Project Report (.docx):** [`Smart_Study_Project_Report.docx`](./Smart_Study_Project_Report.docx)<br>
+> • **PowerPoint Slides (.pptx):** [`Smart_Study_Project_Presentation.pptx`](./Smart_Study_Project_Presentation.pptx)<br>
+> • **Markdown Technical Report:** [`PROJECT_REPORT.md`](./PROJECT_REPORT.md)<br>
+> • **Markdown Slide Deck & Defense Guide:** [`PROJECT_PRESENTATION.md`](./PROJECT_PRESENTATION.md)<br>
+> • **AI Tutor Feature Roadmap:** [`AI_TUTOR_SUMMARIZATION_ROADMAP.md`](./AI_TUTOR_SUMMARIZATION_ROADMAP.md)
 
 ---
 
@@ -10,7 +17,7 @@ The system comes pre-configured with active accounts for testing and evaluation 
 
 | Role | Email | Password | Primary Capabilities & Features |
 | :--- | :--- | :--- | :--- |
-| **Student** | `student@test.com` | `Password123!` | • Upload and process study notes (PDF, TXT, DOCX)<br>• Automated topic-ranked study plans & task manager<br>• Focus mode with stopwatch/timer sessions<br>• Dynamic MCQ quizzes with instant scoring<br>• SuperMemo SM-2 spaced repetition flashcards<br>• Source-grounded AI Tutor with citations<br>• Study analytics and mastery tracking |
+| **Student** | `student@test.com` | `Password123!` | • Upload and process study notes (PDF, TXT, DOCX)<br>• Automated topic-ranked study plans & task manager<br>• Focus mode with stopwatch/timer sessions<br>• Dynamic MCQ quizzes with factual entity grounding & instant scoring<br>• Study analytics, weekly focus charts & mastery tracking<br>• *AI Document Summarizer & Grounded Q&A* (In Development • [View Roadmap](./AI_TUTOR_SUMMARIZATION_ROADMAP.md)) |
 | **Parent** | `parent@test.com` | `Password123!` | • Link student accounts via email request<br>• Real-time academic progress monitoring<br>• Total focus hours, quiz performance, and task rates<br>• Subject-level breakdown and study activity |
 | **Admin** | `admin@test.com` | `Password123!` | • System telemetry and JVM runtime health diagnostics<br>• User account management & role promotions (`STUDENT`, `PARENT`, `ADMIN`)<br>• Platform-wide database metrics and activity counters |
 

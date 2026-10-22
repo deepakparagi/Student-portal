@@ -16,10 +16,8 @@ import {
   Trash2,
   Flame,
   AlertCircle,
-  FileCheck,
   Brain,
   ListTodo,
-  ExternalLink,
 } from "lucide-react";
 import { Navbar } from "../navbar";
 import {
@@ -29,7 +27,6 @@ import {
   ConfirmDialog,
   EmptyState,
   Skeleton,
-  MarkdownView,
 } from "@/components/ui";
 
 type Me = { id?: number; name: string; email: string; role: string };
@@ -103,50 +100,47 @@ export default function Dashboard() {
       }
 
       if (userRes.ok) {
-        const user = (await userRes.json()) as Me;
-        setMe(user);
-        if (user.role === "ADMIN") {
-          router.push("/admin");
-          return;
-        }
-        if (user.role === "PARENT") {
+        const u = await userRes.json();
+        setMe(u);
+        if (u.role === "PARENT") {
           router.push("/parent");
           return;
-        }
-
-        // Fetch parent link requests
-        const requestsRes = await fetch(`${API}/parents/links/pending`, { credentials: "include" }).catch(() => null);
-        if (requestsRes && requestsRes.ok) {
-          const raw = await requestsRes.json();
-          setParentRequests(Array.isArray(raw) ? raw : (raw?.content ?? []));
         }
       }
 
       if (materialsRes.ok) {
-        const rawMaterials = await materialsRes.json();
-        const list: Material[] = Array.isArray(rawMaterials) ? rawMaterials : (rawMaterials?.content ?? []);
+        const raw = await materialsRes.json();
+        const list: Material[] = Array.isArray(raw) ? raw : (raw?.content ?? []);
         setMaterials(list);
       }
 
       if (overviewRes && overviewRes.ok) {
-        const stats = await overviewRes.json();
-        setOverview(stats);
+        const o = await overviewRes.json();
+        setOverview(o);
       }
 
       if (tasksRes && tasksRes.ok) {
-        const rawTasks = await tasksRes.json();
-        const list: Task[] = Array.isArray(rawTasks) ? rawTasks : (rawTasks?.content ?? []);
-        setTasks(list);
+        const t = await tasksRes.json();
+        setTasks(Array.isArray(t) ? t : (t?.content ?? []));
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load dashboard records.");
+
+      // Check for parent link requests
+      fetch(`${API}/parents/links/pending`, { credentials: "include" })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => {
+          if (Array.isArray(data)) setParentRequests(data);
+        })
+        .catch(() => {});
+    } catch {
+      setError("Unable to connect to the Smart Study backend. Please ensure the service is running.");
     } finally {
       setLoading(false);
     }
   }, [router]);
 
   useEffect(() => {
-    void loadData();
+    const timeoutId = window.setTimeout(() => void loadData(), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [loadData]);
 
   // Polling for processing materials
@@ -239,20 +233,6 @@ export default function Dashboard() {
     }
   }
 
-  // Duplicate detection
-  const duplicateTitles = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const m of materials) {
-      const t = m.title.trim().toLowerCase();
-      counts.set(t, (counts.get(t) || 0) + 1);
-    }
-    const dups = new Set<string>();
-    counts.forEach((val, key) => {
-      if (val > 1) dups.add(key);
-    });
-    return dups;
-  }, [materials]);
-
   // Filtered materials
   const filteredMaterials = useMemo(() => {
     if (!searchQuery.trim()) return materials;
@@ -265,9 +245,7 @@ export default function Dashboard() {
     );
   }, [materials, searchQuery]);
 
-  // Next pending task
   const nextTask = useMemo(() => tasks.find((t) => t.status === "PENDING"), [tasks]);
-
   const userDisplayName = me?.name ? me.name : "Student";
   const studyHoursDisplay =
     overview.totalStudyMinutes >= 60
@@ -275,23 +253,22 @@ export default function Dashboard() {
       : `${overview.totalStudyMinutes} mins`;
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="min-h-screen flex flex-col bg-brand-primary text-brand-light">
       <Navbar />
 
-      <main id="main-content" className="app-container page-wrapper" style={{ flex: 1 }}>
+      <main id="main-content" className="app-container page-wrapper flex-1">
         {/* Unified Page Header */}
         <PageHeader
           eyebrow="Academic Dashboard"
-          eyebrowIcon={<Sparkles size={13} color="var(--accent-lime)" />}
           title={`Welcome back, ${userDisplayName}.`}
-          description="Here is your verified study volume, upcoming review blocks, and knowledge library."
+          description="Track your verified study time, active recall practice, and document library."
           actions={
-            <label className="button primary" style={{ cursor: "pointer" }}>
-              <Upload size={16} />
-              <span>{busy ? "Uploading Note..." : "Upload New Note"}</span>
+            <label className="button primary cursor-pointer">
+              <Upload size={15} />
+              <span>{busy ? "Uploading Note..." : "Upload Note"}</span>
               <input
                 type="file"
-                accept=".pdf,.txt,.docx,.md"
+                accept=".pdf,.txt,.docx,.md,.xlsx,.xlsm,.pptx,.csv"
                 onChange={handleUpload}
                 disabled={busy}
                 hidden
@@ -303,43 +280,21 @@ export default function Dashboard() {
         {error && (
           <div
             role="alert"
-            style={{
-              padding: "12px 16px",
-              borderRadius: "var(--radius-sm)",
-              background: "var(--danger-bg)",
-              border: "1px solid var(--danger-border)",
-              color: "#fca5a5",
-              fontSize: "13px",
-              marginBottom: "24px",
-            }}
+            className="p-3.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-xs mb-6"
           >
             {error}
           </div>
         )}
 
-        {/* Pending Parent Requests Notice */}
+        {/* Parent Requests Notice */}
         {parentRequests.length > 0 && (
-          <div
-            className="glass-panel"
-            style={{
-              padding: "16px 20px",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid rgba(59, 130, 246, 0.4)",
-              background: "rgba(59, 130, 246, 0.1)",
-              marginBottom: "24px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "12px",
-            }}
-          >
+          <div className="rounded-xl border border-brand-neutral/30 bg-brand-accent/20 p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <strong style={{ color: "#93c5fd", fontSize: "14px", display: "block" }}>
+              <strong className="text-sm text-brand-light block">
                 Parent Access Request Pending
               </strong>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--paper)" }}>
-                {parentRequests[0].parent.name} ({parentRequests[0].parent.email}) requested permission to view your study hours and quiz scores.
+              <p className="text-xs text-brand-neutral mt-0.5">
+                {parentRequests[0].parent.name} ({parentRequests[0].parent.email}) requested permission to view study hours and quiz scores.
               </p>
             </div>
             <Button
@@ -352,245 +307,198 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* 4 Standardized Metric Cards (Synchronized with /analytics) */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-            gap: "16px",
-            marginBottom: "28px",
-          }}
-        >
+        {/* Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatCard
             label="Total Study Time"
             value={studyHoursDisplay}
-            subtext="Tracked across verified focus intervals"
+            subtext="Across focus sessions"
             icon={Clock}
-            iconColor="var(--mint)"
-            accentColor="var(--accent-lime)"
           />
           <StatCard
             label="Tasks Completed"
             value={`${overview.completedTasks} / ${overview.totalTasks}`}
-            subtext={`${overview.taskCompletionPercent}% overall plan completion`}
+            subtext={`${overview.taskCompletionPercent}% completion`}
             progressPercent={overview.taskCompletionPercent}
             icon={CheckCircle2}
-            iconColor="var(--mint)"
           />
           <StatCard
             label="Quiz Accuracy"
             value={`${overview.quizAccuracyPercent}%`}
-            subtext={`Evaluated across ${overview.quizAttempts} quiz submissions`}
+            subtext={`Across ${overview.quizAttempts} attempts`}
             icon={Award}
-            iconColor="var(--gold)"
-            accentColor={overview.quizAccuracyPercent >= 70 ? "var(--mint)" : "var(--paper)"}
           />
           <StatCard
-            label="Knowledge Library"
+            label="Study Materials"
             value={materials.length}
-            subtext={`${materials.filter((m) => m.status === "COMPLETED").length} documents synthesized`}
+            subtext={`${materials.filter((m) => m.status === "COMPLETED").length} ready for Q&A`}
             icon={FileText}
-            iconColor="var(--blue)"
           />
         </div>
 
-        {/* State-Aware "Today's Focus" Banner */}
-        <div
-          className="glass-panel"
-          style={{
-            padding: "24px 28px",
-            borderRadius: "var(--radius-lg)",
-            marginBottom: "28px",
-            background: "linear-gradient(135deg, rgba(30, 68, 48, 0.7), rgba(8, 20, 14, 0.85))",
-            border: "1px solid rgba(122, 255, 135, 0.3)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "20px",
-          }}
-        >
-          <div style={{ maxWidth: "680px" }}>
-            <span className="eyebrow" style={{ color: "var(--accent-lime)" }}>
-              <Flame size={14} /> Today&apos;s Focus Recommendation
-            </span>
-            {nextTask ? (
-              <>
-                <h2 style={{ fontSize: "22px", fontWeight: 700, margin: "6px 0", color: "var(--paper)" }}>
-                  {nextTask.title}
-                </h2>
-                <p style={{ margin: 0, fontSize: "14px", color: "var(--paper-soft)" }}>
-                  Scheduled duration: <strong>{nextTask.estimatedMinutes ?? 25} minutes</strong>. Ready to enter a distraction-free Pomodoro session?
-                </p>
-              </>
-            ) : materials.length > 0 ? (
-              <>
-                <h2 style={{ fontSize: "22px", fontWeight: 700, margin: "6px 0", color: "var(--paper)" }}>
-                  All scheduled tasks cleared!
-                </h2>
-                <p style={{ margin: 0, fontSize: "14px", color: "var(--paper-soft)" }}>
-                  Reinforce your memory by generating an active recall quiz from your knowledge library.
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 style={{ fontSize: "22px", fontWeight: 700, margin: "6px 0", color: "var(--paper)" }}>
-                  Upload your first study material
-                </h2>
-                <p style={{ margin: 0, fontSize: "14px", color: "var(--paper-soft)" }}>
-                  Add a PDF, lecture slide deck, or text note to generate adaptive summaries, tasks, and quizzes.
-                </p>
-              </>
-            )}
-          </div>
-
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            {nextTask ? (
-              <Button variant="primary" href="/focus" size="default">
-                <Clock size={16} />
-                <span>Launch Focus Session</span>
-              </Button>
-            ) : materials.length > 0 ? (
-              <Button variant="primary" href="/quizzes" size="default">
-                <Award size={16} />
-                <span>Practice Active Recall</span>
-              </Button>
-            ) : (
-              <label className="button primary" style={{ cursor: "pointer" }}>
-                <Upload size={16} />
-                <span>Upload Note</span>
-                <input type="file" accept=".pdf,.txt,.docx" onChange={handleUpload} hidden />
-              </label>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Tools Grid (Replaces plain text links) */}
-        <div style={{ marginBottom: "36px" }}>
-          <h2 className="section-heading" style={{ fontSize: "20px", marginBottom: "14px" }}>
-            Study Toolkit
-          </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "14px" }}>
-            <Link
-              href="/focus"
-              className="glass-card"
-              style={{ padding: "18px", display: "flex", alignItems: "flex-start", gap: "14px", textDecoration: "none" }}
-            >
-              <div style={{ display: "grid", width: "40px", height: "40px", placeItems: "center", borderRadius: "10px", background: "rgba(122, 255, 135, 0.12)", color: "var(--accent-lime)", flexShrink: 0 }}>
-                <Clock size={20} />
-              </div>
-              <div>
-                <strong style={{ fontSize: "15px", color: "var(--paper)", display: "block" }}>Focus Mode</strong>
-                <span style={{ fontSize: "12px", color: "var(--mist)", marginTop: "2px", display: "block" }}>
-                  Countdown Pomodoro intervals &amp; session logging
-                </span>
-              </div>
-            </Link>
-
-            <Link
-              href="/quizzes"
-              className="glass-card"
-              style={{ padding: "18px", display: "flex", alignItems: "flex-start", gap: "14px", textDecoration: "none" }}
-            >
-              <div style={{ display: "grid", width: "40px", height: "40px", placeItems: "center", borderRadius: "10px", background: "rgba(255, 214, 105, 0.12)", color: "var(--gold)", flexShrink: 0 }}>
-                <Award size={20} />
-              </div>
-              <div>
-                <strong style={{ fontSize: "15px", color: "var(--paper)", display: "block" }}>Active Recall Quizzes</strong>
-                <span style={{ fontSize: "12px", color: "var(--mist)", marginTop: "2px", display: "block" }}>
-                  Source-grounded MCQs with detailed explanations
-                </span>
-              </div>
-            </Link>
-
-            <Link
-              href="/tasks"
-              className="glass-card"
-              style={{ padding: "18px", display: "flex", alignItems: "flex-start", gap: "14px", textDecoration: "none" }}
-            >
-              <div style={{ display: "grid", width: "40px", height: "40px", placeItems: "center", borderRadius: "10px", background: "rgba(132, 229, 188, 0.12)", color: "var(--mint)", flexShrink: 0 }}>
-                <ListTodo size={20} />
-              </div>
-              <div>
-                <strong style={{ fontSize: "15px", color: "var(--paper)", display: "block" }}>Adaptive Tasks</strong>
-                <span style={{ fontSize: "12px", color: "var(--mist)", marginTop: "2px", display: "block" }}>
-                  Daily study blocks prioritized by urgency
-                </span>
-              </div>
-            </Link>
-
-            <Link
-              href="/ai-tutor"
-              className="glass-card"
-              style={{ padding: "18px", display: "flex", alignItems: "flex-start", gap: "14px", textDecoration: "none" }}
-            >
-              <div style={{ display: "grid", width: "40px", height: "40px", placeItems: "center", borderRadius: "10px", background: "rgba(168, 231, 255, 0.12)", color: "var(--blue)", flexShrink: 0 }}>
-                <Brain size={20} />
-              </div>
-              <div>
-                <strong style={{ fontSize: "15px", color: "var(--paper)", display: "block" }}>AI Tutor Assistant</strong>
-                <span style={{ fontSize: "12px", color: "var(--mist)", marginTop: "2px", display: "block" }}>
-                  Source-grounded academic Q&amp;A assistance
-                </span>
-              </div>
-            </Link>
-          </div>
-        </div>
-
-        {/* Study Materials Section */}
-        <section id="materials">
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "14px",
-              marginBottom: "16px",
-            }}
-          >
+        {/* Quick Study Navigation & Today's Recommendation Banner */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mb-8">
+          {/* Today's Recommendation */}
+          <div className="lg:col-span-8 rounded-xl border border-brand-neutral/20 bg-brand-secondary p-5 flex flex-col justify-between">
             <div>
-              <p className="eyebrow">Knowledge Ingestion</p>
-              <h2 className="section-heading" style={{ fontSize: "22px", margin: 0 }}>
-                Study Materials ({materials.length})
-              </h2>
+              <span className="eyebrow text-brand-neutral">
+                <Flame size={13} /> Recommended Next Step
+              </span>
+              {nextTask ? (
+                <>
+                  <h3 className="text-lg font-semibold text-brand-light my-1">
+                    {nextTask.title}
+                  </h3>
+                  <p className="text-xs text-brand-neutral leading-relaxed mb-4">
+                    Estimated duration: <strong className="text-brand-neutral">{nextTask.estimatedMinutes ?? 25} minutes</strong>. Ready for a distraction-free Pomodoro session?
+                  </p>
+                </>
+              ) : materials.length > 0 ? (
+                <>
+                  <h3 className="text-lg font-semibold text-brand-light my-1">
+                    All scheduled tasks completed!
+                  </h3>
+                  <p className="text-xs text-brand-neutral leading-relaxed mb-4">
+                    Reinforce your retention with an active recall quiz generated from your uploaded materials.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-lg font-semibold text-brand-light my-1">
+                    Upload your first study document
+                  </h3>
+                  <p className="text-xs text-brand-neutral leading-relaxed mb-4">
+                    Add a PDF, lecture deck, or spreadsheet to generate grounded summaries and recall quizzes.
+                  </p>
+                </>
+              )}
             </div>
 
-            {/* Search Filter */}
-            <div style={{ position: "relative", minWidth: "260px" }}>
+            <div className="flex items-center gap-2 pt-2 border-t border-brand-neutral/20">
+              {nextTask ? (
+                <Button variant="primary" href="/focus" size="sm">
+                  <Clock size={14} className="mr-1" /> Launch Focus Block
+                </Button>
+              ) : materials.length > 0 ? (
+                <Button variant="primary" href="/quizzes" size="sm">
+                  <Award size={14} className="mr-1" /> Practice Recall Quiz
+                </Button>
+              ) : (
+                <label className="button primary btn-compact cursor-pointer">
+                  <Upload size={14} />
+                  <span>Upload File</span>
+                  <input type="file" accept=".pdf,.txt,.docx" onChange={handleUpload} hidden />
+                </label>
+              )}
+              <Button variant="ghost" href="/ai-tutor" size="sm">
+                <Brain size={14} className="mr-1" /> Open AI Tutor
+              </Button>
+            </div>
+          </div>
+
+          {/* Quick Shortcuts */}
+          <div className="lg:col-span-4 rounded-xl border border-brand-neutral/20 bg-brand-secondary p-4 flex flex-col justify-between">
+            <span className="text-xs font-semibold text-brand-neutral uppercase tracking-wider block mb-3">
+              Study Modules
+            </span>
+
+            <div className="space-y-1.5 flex-1">
+              <Link
+                href="/ai-tutor"
+                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-brand-secondary/50 text-xs transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Brain size={15} className="text-brand-neutral" />
+                  <span className="font-medium text-brand-neutral">AI Tutor (Grounded)</span>
+                </div>
+                <ArrowRight size={13} className="text-brand-muted" />
+              </Link>
+
+              <Link
+                href="/quizzes"
+                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-brand-secondary/50 text-xs transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Award size={15} className="text-amber-400" />
+                  <span className="font-medium text-brand-neutral">Active Recall Quizzes</span>
+                </div>
+                <ArrowRight size={13} className="text-brand-muted" />
+              </Link>
+
+              <Link
+                href="/focus"
+                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-brand-secondary/50 text-xs transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Clock size={15} className="text-emerald-400" />
+                  <span className="font-medium text-brand-neutral">Pomodoro Focus Timer</span>
+                </div>
+                <ArrowRight size={13} className="text-brand-muted" />
+              </Link>
+
+              <Link
+                href="/tasks"
+                className="flex items-center justify-between p-2.5 rounded-lg hover:bg-brand-secondary/50 text-xs transition-colors"
+              >
+                <div className="flex items-center gap-2.5">
+                  <ListTodo size={15} className="text-brand-neutral" />
+                  <span className="font-medium text-brand-neutral">Study Tasks</span>
+                </div>
+                <ArrowRight size={13} className="text-brand-muted" />
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* Study Materials Knowledge Library */}
+        <section id="materials" className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-brand-light">
+                Uploaded Materials ({materials.length})
+              </h2>
+              <p className="text-xs text-brand-neutral">
+                Files indexed in local ChromaDB vector store for grounded Q&amp;A.
+              </p>
+            </div>
+
+            <div className="relative min-w-[240px]">
               <Search
-                size={15}
-                color="var(--mist)"
-                style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)" }}
+                size={14}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted"
               />
               <input
                 type="text"
-                placeholder="Search materials by title or topic..."
+                placeholder="Search documents..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="form-control"
-                style={{ paddingLeft: "36px", height: "40px", fontSize: "13px" }}
+                className="w-full h-8 pl-8 pr-3 text-xs bg-brand-primary border border-brand-neutral/20 rounded-md text-brand-neutral placeholder-zinc-500 focus:outline-none focus:border-brand-neutral/30"
               />
             </div>
           </div>
 
           {loading ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              <Skeleton height="80px" />
-              <Skeleton height="80px" />
-              <Skeleton height="80px" />
+            <div className="space-y-3">
+              <Skeleton height="72px" />
+              <Skeleton height="72px" />
+              <Skeleton height="72px" />
             </div>
           ) : filteredMaterials.length === 0 ? (
             materials.length === 0 ? (
               <EmptyState
                 icon={FileText}
                 title="No study materials uploaded yet"
-                description="Upload lecture slides, textbooks, or notes (PDF, DOCX, TXT) to generate AI summaries and practice quizzes."
+                description="Upload lecture slides, textbooks, or notes (PDF, DOCX, XLSX, PPTX, TXT) to generate AI summaries and practice quizzes."
                 action={
-                  <label className="button primary" style={{ cursor: "pointer" }}>
-                    <Upload size={16} />
-                    <span>Upload Your First Note</span>
-                    <input type="file" accept=".pdf,.txt,.docx" onChange={handleUpload} hidden />
+                  <label className="button primary btn-compact cursor-pointer">
+                    <Upload size={14} />
+                    <span>Upload First Note</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.txt,.docx,.md,.xlsx,.xlsm,.pptx,.csv"
+                      onChange={handleUpload}
+                      hidden
+                    />
                   </label>
                 }
               />
@@ -598,177 +506,132 @@ export default function Dashboard() {
               <EmptyState
                 icon={Search}
                 title="No matching materials found"
-                description={`No uploaded files matched your search query "${searchQuery}".`}
+                description={`No uploaded files matched your search "${searchQuery}".`}
                 action={
-                  <Button variant="ghost" onClick={() => setSearchQuery("")}>
+                  <Button variant="ghost" size="sm" onClick={() => setSearchQuery("")}>
                     Clear Search
                   </Button>
                 }
               />
             )
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div className="space-y-2.5">
               {filteredMaterials.map((material) => {
-                const isDup = duplicateTitles.has(material.title.trim().toLowerCase());
                 const ext = material.fileName.split(".").pop()?.toUpperCase() || "DOC";
+                const isCompleted = material.status === "COMPLETED";
+                const isProcessing = material.status === "PROCESSING";
+                const isFailed = material.status === "FAILED";
 
                 return (
                   <article
                     key={material.id}
-                    className="glass-card"
-                    style={{
-                      padding: "20px",
-                      borderRadius: "var(--radius-md)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "12px",
-                    }}
+                    className="rounded-xl border border-brand-neutral/20 bg-brand-secondary p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:border-brand-neutral/30 transition-colors"
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "14px" }}>
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", flex: 1 }}>
-                        {/* File extension badge */}
-                        <div
-                          style={{
-                            display: "grid",
-                            width: "42px",
-                            height: "44px",
-                            placeItems: "center",
-                            borderRadius: "8px",
-                            background: ext === "PDF" ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 214, 105, 0.12)",
-                            border: ext === "PDF" ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid rgba(255, 214, 105, 0.3)",
-                            color: ext === "PDF" ? "#fca5a5" : "var(--gold)",
-                            fontWeight: 800,
-                            fontSize: "11px",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {ext}
-                        </div>
-
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                            <h3 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "var(--paper)" }}>
-                              {material.title}
-                            </h3>
-                            {isDup && (
-                              <span className="badge badge-warning" title="Multiple documents share this title">
-                                Duplicate Title
-                              </span>
-                            )}
-                            <span
-                              className={`badge ${
-                                material.status === "COMPLETED"
-                                  ? "badge-success"
-                                  : material.status === "FAILED"
-                                  ? "badge-danger"
-                                  : "badge-neutral"
-                              }`}
-                            >
-                              {material.status}
-                            </span>
-                          </div>
-
-                          <div style={{ display: "flex", gap: "12px", fontSize: "12px", color: "var(--mist)", marginTop: "4px" }}>
-                            <span>{material.fileName}</span>
-                            {material.fileSize && <span>&bull; {(material.fileSize / 1024).toFixed(1)} KB</span>}
-                            {material.createdAt && (
-                              <span>&bull; Uploaded {new Date(material.createdAt).toLocaleDateString()}</span>
-                            )}
-                          </div>
-                        </div>
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="grid w-9 h-9 place-items-center rounded-lg bg-brand-primary border border-brand-neutral/20 text-[11px] font-mono font-semibold text-brand-neutral shrink-0">
+                        {ext}
                       </div>
 
-                      {/* Row Actions */}
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                        {material.status === "COMPLETED" && (
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-semibold text-brand-neutral truncate">
+                            {material.title}
+                          </h3>
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[10px] font-medium ${
+                              isCompleted
+                                ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                                : isProcessing
+                                ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
+                                : "bg-red-500/10 text-red-400 border border-red-500/20"
+                            }`}
+                          >
+                            {material.status}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs text-brand-neutral mt-1">
+                          <span className="truncate">{material.fileName}</span>
+                          {material.fileSize && (
+                            <>
+                              <span>·</span>
+                              <span>{(material.fileSize / 1024).toFixed(0)} KB</span>
+                            </>
+                          )}
+                        </div>
+
+                        {material.summary && (
+                          <p className="text-xs text-brand-neutral line-clamp-1 mt-1.5 italic">
+                            &ldquo;{material.summary.slice(0, 140)}...&rdquo;
+                          </p>
+                        )}
+
+                        {isFailed && (
+                          <div className="text-xs text-red-400 mt-1 flex items-center gap-1.5">
+                            <AlertCircle size={12} />
+                            <span>{material.processingError || "Extraction failed."}</span>
+                            <button
+                              onClick={() => void retryMaterial(material.id)}
+                              className="underline text-brand-neutral hover:text-brand-light ml-1 cursor-pointer"
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                      {isCompleted && (
+                        <>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            href={`/ai-tutor`}
+                            className="text-xs"
+                          >
+                            <Brain size={13} className="mr-1 text-brand-neutral" />
+                            <span>Ask Tutor</span>
+                          </Button>
                           <Button
                             variant="secondary"
                             size="sm"
                             href={`/quizzes`}
+                            className="text-xs"
                           >
-                            <Award size={14} color="var(--gold)" />
-                            <span>Practice Quiz</span>
+                            <Award size={13} className="mr-1 text-amber-400" />
+                            <span>Quiz</span>
                           </Button>
-                        )}
+                        </>
+                      )}
 
-                        {material.status === "FAILED" && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => void retryMaterial(material.id)}
-                          >
-                            <RefreshCw size={13} />
-                            <span>Retry</span>
-                          </Button>
-                        )}
-
-                        <button
-                          type="button"
-                          className="btn-icon"
-                          onClick={() => setDeleteTarget(material)}
-                          title="Delete study note"
-                          aria-label={`Delete ${material.title}`}
-                          style={{ width: "36px", height: "36px" }}
-                        >
-                          <Trash2 size={15} color="var(--mist)" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setDeleteTarget(material)}
+                        className="p-1.5 rounded text-brand-muted hover:text-red-400 hover:bg-brand-secondary transition-colors cursor-pointer"
+                        title="Delete material"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-
-                    {/* Properly formatted Markdown summary (clamped to 3 lines with read-more toggle) */}
-                    {material.summary && (
-                      <div
-                        style={{
-                          padding: "12px 14px",
-                          borderRadius: "var(--radius-sm)",
-                          background: "rgba(0, 0, 0, 0.25)",
-                          border: "1px solid var(--line)",
-                        }}
-                      >
-                        <MarkdownView content={material.summary} clampLines={3} allowToggle={true} />
-                      </div>
-                    )}
-
-                    {material.processingError && (
-                      <div
-                        style={{
-                          padding: "10px 14px",
-                          borderRadius: "var(--radius-sm)",
-                          background: "var(--danger-bg)",
-                          border: "1px solid var(--danger-border)",
-                          color: "#fca5a5",
-                          fontSize: "12px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                        }}
-                      >
-                        <span>Error: {material.processingError}</span>
-                        <Button variant="ghost" size="sm" onClick={() => void retryMaterial(material.id)}>
-                          Retry Processing
-                        </Button>
-                      </div>
-                    )}
                   </article>
                 );
               })}
             </div>
           )}
         </section>
-      </main>
 
-      {/* Confirmation Dialog for Destructive Action: Delete Material */}
-      <ConfirmDialog
-        isOpen={deleteTarget !== null}
-        title="Delete Study Material?"
-        description={`Are you sure you want to remove "${deleteTarget?.title}"? All extracted summaries and associated generated quiz questions for this document will be permanently removed.`}
-        confirmLabel="Delete Material"
-        cancelLabel="Keep Material"
-        danger={true}
-        loading={isDeleting}
-        onConfirm={confirmDeleteMaterial}
-        onCancel={() => setDeleteTarget(null)}
-      />
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          isOpen={!!deleteTarget}
+          title="Delete Study Material?"
+          description={`Are you sure you want to remove "${deleteTarget?.title}"? Its extracted chunks and ChromaDB vector embeddings will be permanently removed.`}
+          confirmLabel="Delete Material"
+          danger={true}
+          loading={isDeleting}
+          onConfirm={confirmDeleteMaterial}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      </main>
     </div>
   );
 }

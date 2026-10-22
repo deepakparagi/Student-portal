@@ -1,0 +1,118 @@
+{
+  "general_conversation": [
+    {
+      "prompt": "hi",
+      "label": "Short conversational greeting",
+      "status": "PASS",
+      "latency_sec": 23.02,
+      "answer_preview": "Hello! I'm ready to help you learn anything from scratch. Just let me know what topic you'd like to explore, and we'll g..."
+    },
+    {
+      "prompt": "hello",
+      "label": "Standard greeting",
+      "status": "PASS",
+      "latency_sec": 4.06,
+      "answer_preview": "Hello! I'm ready to help you learn anything from scratch. Just let me know what topic interests you, and we'll get start..."
+    },
+    {
+      "prompt": "What can you help me with?",
+      "label": "Capability query",
+      "status": "PASS",
+      "latency_sec": 19.96,
+      "answer_preview": "I am your **Smart Study AI Tutor**, designed to make learning clearer, more accurate, and tailored to *your* needs. Here..."
+    },
+    {
+      "prompt": "Explain how gradient descent optimizes neural network weights in 2 sentences.",
+      "label": "Technical concept",
+      "status": "PASS",
+      "latency_sec": 6.0,
+      "answer_preview": "Gradient descent optimizes neural network weights by iteratively adjusting them in the direction that reduces the error ..."
+    }
+  ],
+  "exact_fact_retrieval": [
+    {
+      "question": "What is the reference number?",
+      "expected": [
+        "AZ-7319",
+        "az-7319"
+      ],
+      "passed": true,
+      "latency_sec": 5.05,
+      "answer": "The scholarship **reference number** (or award ID) for your application is:  \n#AZ-7319  \n\nThis unique identifier links you to the Aurora Scholarship record and should be used when making inquiries or submitting documents. Let me know if you need help with other details like eligibility, deadlines, or payment terms!"
+    },
+    {
+      "question": "How much is the award per semester?",
+      "expected": [
+        "18,450",
+        "18450"
+      ],
+      "passed": true,
+      "latency_sec": 6.73,
+      "answer": "The Aurora Scholarship provides an award of **\u20b918,450 per semester**.\n\nHere are the key details from your study material:\n*   **Award Amount:** \u20b918,450 (per semester)\n*   **Reference Number:** AZ-7319\n*   **Application Deadline:** 17 February 2027\n*   **Eligibility Requirement:** Recipients must maintain full-time enrollment in an accredited STEM degree program.\n\n**Quick Recall Question:** What is the specific reference number for this scholarship?"
+    },
+    {
+      "question": "How much is the award per semester?",
+      "passed": false,
+      "error": "'charmap' codec can't encode character '\\u20b9' in position 103: character maps to <undefined>"
+    },
+    {
+      "question": "What is the application deadline?",
+      "expected": [
+        "17 February 2027",
+        "February 17, 2027",
+        "17 Feb 2027",
+        "2027"
+      ],
+      "passed": true,
+      "latency_sec": 7.36,
+      "answer": "The **application deadline** for the Aurora Scholarship (Reference No: AZ-7319) is **February 17, 2027**.\n\n### Key Details to Remember\n*   **Scholarship Value:** \u20b918,450 per semester.\n*   **Eligibility Requirement:** You must maintain full-time enrollment in an accredited STEM (Science, Technology, Engineering, Mathematics) degree program throughout the award period.\n*   **Deadline Date:** 17 February 2027\n\n**Quick Recall Question:**  \nTo qualify for this scholarship, what specific type of academic status must you maintain?"
+    }
+  ],
+  "missing_information": {
+    "question": "What age must an applicant be to receive the Aurora Scholarship?",
+    "passed": false,
+    "latency_sec": 7.11,
+    "answer": "Based on the provided **Aurora Scholarship Notice**, there is no specific minimum or maximum age mentioned for applicants. The eligibility criteria listed are:\n\n*   Full-time enrollment in an accredited STEM degree program.\n*   Meeting the application deadline of 17 February 2027.\n*   Maintaining this status as a recipient (if awarded).\n\n**Key Takeaway:** While you must be enrolled in a qualifying STEM program, your age is not explicitly restricted by the available text. You should verify if there are additional institutional guidelines or university-specific requirements that might impose an age limit beyond what is stated here."
+  },
+  "followup_context": {
+    "question": "When does it close?",
+    "passed": true,
+    "latency_sec": 5.0,
+    "answer": "**Application Deadline:** February 17, 2027.\n\nTo ensure you don't miss out on this opportunity:\n*   **Action Required:** Submit your application by the deadline listed above.\n*   **Note:** Once the date passes, applications will no longer be accepted for that cycle."
+  },
+  "summarization": {
+    "passed": true,
+    "latency_sec": 34.5,
+    "char_length": 3166,
+    "key_concepts_covered": 6,
+    "summary_preview": "Based on your provided study guide, here is a comprehensive and structured summary of **Cellular Respiration**.\n\n### \ud83e\uddec Core Concept: What is Cellular Respiration?\n**Definition:** The biochemical process where living cells break down glucose to produce energy in the form of ATP (adenosine triphosphat..."
+  },
+  "retrieval_failure": {
+    "question": "What is the GPA prerequisite for the NASA astronaut aerospace internship?",
+    "passed": false,
+    "latency_sec": 9.48,
+    "answer": "Based on the study material provided, **there is no information regarding a specific GPA prerequisite** or any \"NASA astronaut aerospace internship.\"\n\nThe reference document you have access to\u2014the **Aurora Scholarship Notice**\u2014details requirements only for that specific scholarship program. Here are the facts from your text:\n\n*   **Program:** Aurora Scholarship\n*   **Reference Number:** AZ-7319\n*   **Award Amount:** \u20b918,450 per semester\n*   **Deadline:** 17 February 2027\n*   **Academic Requirement:** Recipients must maintain full-time enrollment in an accredited STEM degree program.\n\n**Key Distinction:**\nThe requirement to be enrolled in a \"STEM (Science, Technology, Engineering, Mathematics) degree\" is the only academic condition listed here; it does not specify a minimum GPA score or mention NASA directly. The Aurora Scholarship and NASA astronaut internships are distinct programs with different eligibility criteria."
+  },
+  "persistence": {
+    "passed": true,
+    "total_chunks": 12,
+    "persist_dir": "D:\\Smart Edu\\ml\\chroma_data"
+  },
+  "error_classification": [
+    {
+      "case": "two_char_message_allowed",
+      "status_code": 200,
+      "passed": true
+    },
+    {
+      "case": "empty_question_422",
+      "status_code": 422,
+      "passed": true
+    },
+    {
+      "case": "unknown_model_handled",
+      "passed": false,
+      "answer": "Hello! I'm ready to help you learn anything from scratch with clear examples and"
+    }
+  ]
+}

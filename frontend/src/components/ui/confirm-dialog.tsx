@@ -49,7 +49,7 @@ export function ConfirmDialog({
 
   return (
     <div
-      className="modal-overlay"
+      className="fixed inset-0 z-50 bg-[#080D1C]/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-100"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
@@ -58,72 +58,46 @@ export function ConfirmDialog({
         if (e.target === e.currentTarget && !loading) onCancel();
       }}
     >
-      <div className="modal-dialog" ref={dialogRef}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+      <div className="w-full max-w-md rounded-xl border border-[#243556] bg-[#111E3B] p-5 shadow-2xl animate-in zoom-in-95 duration-100" ref={dialogRef}>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
             <div
-              style={{
-                display: "grid",
-                width: "36px",
-                height: "36px",
-                placeItems: "center",
-                borderRadius: "8px",
-                background: danger ? "var(--danger-bg)" : "var(--warning-bg)",
-                border: danger ? "1px solid var(--danger-border)" : "1px solid var(--warning-border)",
-                color: danger ? "#fca5a5" : "#fde047",
-                flexShrink: 0,
-              }}
+              className={`grid w-8 h-8 place-items-center rounded-lg shrink-0 ${
+                danger
+                  ? "bg-[#FB7185]/15 border border-[#FB7185]/30 text-[#FB7185]"
+                  : "bg-[#F6C56B]/15 border border-[#F6C56B]/30 text-[#F6C56B]"
+              }`}
             >
-              <AlertTriangle size={18} />
+              <AlertTriangle size={16} />
             </div>
-            <h2
-              id="confirm-dialog-title"
-              style={{
-                margin: 0,
-                fontSize: "18px",
-                fontWeight: 700,
-                color: "var(--paper)",
-              }}
-            >
+            <h2 id="confirm-dialog-title" className="text-base font-heading font-semibold text-[#F4F7FF]">
               {title}
             </h2>
           </div>
           <button
             type="button"
-            className="btn-icon"
             onClick={onCancel}
             disabled={loading}
             aria-label="Close dialog"
-            style={{ width: "32px", height: "32px" }}
+            className="p-1 rounded-md text-[#8998B7] hover:text-[#F4F7FF] hover:bg-[#1A2A4B] transition-colors cursor-pointer"
           >
             <X size={16} />
           </button>
         </div>
 
-        <p
-          id="confirm-dialog-desc"
-          style={{
-            margin: "0 0 24px 0",
-            fontSize: "14px",
-            color: "var(--mist)",
-            lineHeight: 1.6,
-          }}
-        >
+        <p id="confirm-dialog-desc" className="text-sm text-[#C4CEE4] leading-relaxed mb-6">
           {description}
         </p>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-          <Button
-            variant="ghost"
-            onClick={onCancel}
-            disabled={loading}
-          >
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="ghost" onClick={onCancel} disabled={loading} size="sm">
             {cancelLabel}
           </Button>
           <Button
             variant={danger ? "danger" : "primary"}
             onClick={onConfirm}
             loading={loading}
+            size="sm"
           >
             {confirmLabel}
           </Button>

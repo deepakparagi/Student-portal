@@ -1,0 +1,368 @@
+[
+  {
+    "route": "/",
+    "prefix": "landing-hero",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/",
+    "prefix": "landing-hero",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/",
+    "prefix": "landing-full",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/",
+    "prefix": "landing-full",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/login",
+    "prefix": "auth-login",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/login",
+    "prefix": "auth-login",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/register",
+    "prefix": "auth-register",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/register",
+    "prefix": "auth-register",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/dashboard",
+    "prefix": "student-dashboard",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/dashboard",
+    "prefix": "student-dashboard",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/quizzes",
+    "prefix": "student-quizzes",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/quizzes",
+    "prefix": "student-quizzes",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/quizzes/11",
+    "prefix": "student-quiz-runner",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/quizzes/11",
+    "prefix": "student-quiz-runner",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/ai-tutor",
+    "prefix": "student-tutor",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      },
+      {
+        "id": "landmark-unique",
+        "impact": "moderate",
+        "description": "Ensure landmarks are unique",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/ai-tutor",
+    "prefix": "student-tutor",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/tasks",
+    "prefix": "student-tasks",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/tasks",
+    "prefix": "student-tasks",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/focus",
+    "prefix": "student-focus",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/focus",
+    "prefix": "student-focus",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/analytics",
+    "prefix": "student-progress",
+    "breakpoint": "1440",
+    "violations": []
+  },
+  {
+    "route": "/analytics",
+    "prefix": "student-progress",
+    "breakpoint": "390",
+    "violations": []
+  },
+  {
+    "route": "/parent",
+    "prefix": "parent-overview",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/parent",
+    "prefix": "parent-overview",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "parent-tab-quizzes",
+    "prefix": "parent-tab-quizzes",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "parent-tab-quizzes",
+    "prefix": "parent-tab-quizzes",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "parent-tab-sessions",
+    "prefix": "parent-tab-sessions",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "parent-tab-sessions",
+    "prefix": "parent-tab-sessions",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "parent-tab-tasks",
+    "prefix": "parent-tab-tasks",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "parent-tab-tasks",
+    "prefix": "parent-tab-tasks",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "/admin",
+    "prefix": "admin-users",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "description": "Ensure select element has an accessible name",
+        "nodes": 7
+      }
+    ]
+  },
+  {
+    "route": "/admin",
+    "prefix": "admin-users",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "select-name",
+        "impact": "critical",
+        "description": "Ensure select element has an accessible name",
+        "nodes": 7
+      }
+    ]
+  },
+  {
+    "route": "admin-tab-pipeline",
+    "prefix": "admin-tab-pipeline",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "admin-tab-pipeline",
+    "prefix": "admin-tab-pipeline",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      },
+      {
+        "id": "scrollable-region-focusable",
+        "impact": "serious",
+        "description": "Ensure elements that have scrollable content are accessible by keyboard in Safari",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "admin-tab-stream",
+    "prefix": "admin-tab-stream",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "admin-tab-stream",
+    "prefix": "admin-tab-stream",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "admin-tab-health",
+    "prefix": "admin-tab-health",
+    "breakpoint": "1440",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  },
+  {
+    "route": "admin-tab-health",
+    "prefix": "admin-tab-health",
+    "breakpoint": "390",
+    "violations": [
+      {
+        "id": "heading-order",
+        "impact": "moderate",
+        "description": "Ensure the order of headings is semantically correct",
+        "nodes": 1
+      }
+    ]
+  }
+]

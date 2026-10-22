@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "quiet";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "quiet" | "ai";
 export type ButtonSize = "default" | "sm" | "lg" | "icon";
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -40,6 +40,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     else if (variant === "ghost") baseClasses.push("ghost");
     else if (variant === "danger") baseClasses.push("danger");
     else if (variant === "quiet") baseClasses.push("quiet");
+    else if (variant === "ai") baseClasses.push("ai");
 
     if (size === "sm") baseClasses.push("btn-compact");
     if (size === "icon") baseClasses.push("btn-icon");

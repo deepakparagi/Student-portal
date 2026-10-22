@@ -16,8 +16,8 @@ export function ProgressRing({
   progress,
   size = 200,
   strokeWidth = 10,
-  color = "var(--accent-lime)",
-  bgColor = "rgba(255, 255, 255, 0.08)",
+  color = "var(--primary-action, #7185FF)",
+  bgColor = "rgba(36, 53, 86, 0.5)",
   children,
   className = "",
 }: ProgressRingProps) {

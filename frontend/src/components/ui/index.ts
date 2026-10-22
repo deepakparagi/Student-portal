@@ -6,3 +6,4 @@ export * from "./progress-ring";
 export * from "./empty-state";
 export * from "./skeleton";
 export * from "./markdown-view";
+export * from "./spotlight-card";

@@ -285,6 +285,35 @@ export const ParentLinkSchema = z.object({
   createdAt: z.string(),
 });
 
+export const TutorSourceSchema = z.object({
+  text: z.string(),
+  score: z.number().optional(),
+  citation: z.string().optional(),
+  metadata: z.object({
+    material_id: z.number().optional(),
+    page: z.number().nullable().optional(),
+    slide: z.number().nullable().optional(),
+    sheet: z.string().nullable().optional(),
+    row_range: z.string().nullable().optional(),
+    heading: z.string().nullable().optional(),
+    file_type: z.string().optional(),
+    filename: z.string().optional(),
+  }).optional(),
+});
+
+export const TutorAskResponseSchema = z.object({
+  conversationId: z.number(),
+  messages: z.array(z.object({
+    id: z.number(),
+    role: z.string(),
+    content: z.string(),
+    sources: z.array(TutorSourceSchema).optional(),
+    createdAt: z.string(),
+  })),
+  model: z.string().optional(),
+  grounded: z.boolean().optional(),
+});
+
 // Type exports
 export type User = z.infer<typeof UserSchema>;
 export type Material = z.infer<typeof MaterialSchema>;
@@ -302,3 +331,5 @@ export type FocusSession = z.infer<typeof FocusSessionSchema>;
 export type TutorConversation = z.infer<typeof TutorConversationSchema>;
 export type TutorMessage = z.infer<typeof TutorMessageSchema>;
 export type ParentLink = z.infer<typeof ParentLinkSchema>;
+export type TutorSource = z.infer<typeof TutorSourceSchema>;
+export type TutorAskResponse = z.infer<typeof TutorAskResponseSchema>;

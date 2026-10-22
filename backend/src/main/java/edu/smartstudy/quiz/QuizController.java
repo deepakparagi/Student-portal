@@ -54,15 +54,43 @@ public class QuizController {
     public record GenerateRequest(
             Long materialId,
             String topic,
-            Integer count
-    ) {}
+            Integer count,
+            String model,
+            String apiKey
+    ) {
+        public GenerateRequest(Long materialId, String topic, Integer count) {
+            this(materialId, topic, count, null, null);
+        }
+    }
 
     public record AttemptInput(@jakarta.validation.constraints.NotEmpty List<String> answers) {}
 
     @GetMapping
     public List<Map<String, Object>> list(Authentication a) {
-        return quizzes.findTop100ByOwnerIdOrderByCreatedAtDesc(owner(a)).stream()
-                .map(q -> Map.<String, Object>of("id", q.getId(), "title", q.getTitle(), "materialId", q.getMaterialId(), "createdAt", q.getCreatedAt()))
+        Long studentId = owner(a);
+        List<QuizAttempt> allAttempts = attempts.findTop100ByStudentIdOrderBySubmittedAtDesc(studentId);
+        return quizzes.findTop100ByOwnerIdOrderByCreatedAtDesc(studentId).stream()
+                .map(q -> {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("id", q.getId());
+                    map.put("title", q.getTitle());
+                    map.put("materialId", q.getMaterialId());
+                    map.put("createdAt", q.getCreatedAt());
+                    String topic = q.getTitle().replaceFirst("(?i)^Quiz\\s+on\\s+", "").trim();
+                    map.put("topic", topic.isBlank() ? "Data Structures" : topic);
+                    Optional<QuizAttempt> latest = allAttempts.stream()
+                            .filter(att -> Objects.equals(att.getQuizId(), q.getId()))
+                            .findFirst();
+                    if (latest.isPresent() && latest.get().getTotalQuestions() > 0) {
+                        int pct = Math.round(100.0f * latest.get().getScore() / latest.get().getTotalQuestions());
+                        map.put("scorePercent", pct);
+                        map.put("questionCount", latest.get().getTotalQuestions());
+                    } else {
+                        map.put("scorePercent", null);
+                        map.put("questionCount", 5);
+                    }
+                    return map;
+                })
                 .toList();
     }
 
@@ -70,26 +98,33 @@ public class QuizController {
     public ResponseEntity<?> testKey(
             @RequestBody(required = false) Map<String, String> body,
             @RequestHeader(value = "X-OpenRouter-Api-Key", required = false) String clientOpenRouterApiKey,
-            @RequestHeader(value = "X-LLM-Api-Key", required = false) String clientLlmApiKey
+            @RequestHeader(value = "X-LLM-Api-Key", required = false) String clientLlmApiKey,
+            @RequestHeader(value = "X-LLM-Model", required = false) String clientLlmModel
     ) {
         String key = null;
+        String model = null;
         if (body != null) {
             key = body.getOrDefault("apiKey", body.get("api_key"));
+            model = body.getOrDefault("model", body.get("model_name"));
         }
         if (key == null || key.isBlank()) {
             key = clientOpenRouterApiKey != null && !clientOpenRouterApiKey.isBlank() ? clientOpenRouterApiKey : clientLlmApiKey;
         }
-        if (key == null || key.isBlank()) {
-            key = defaultOpenRouterApiKey;
+        if (model == null || model.isBlank()) {
+            model = clientLlmModel;
         }
-        if (key == null || key.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("valid", false, "error", "No API key provided."));
+        boolean isLocal = model != null && (model.equalsIgnoreCase("smartstudy-tutor") || model.equalsIgnoreCase("local") || model.toLowerCase().startsWith("ollama"));
+        if ((key == null || key.isBlank()) && !isLocal) {
+            key = defaultOpenRouterApiKey;
         }
 
         try {
             var postBuilder = ml.post().uri("/ml/v1/test-key")
                     .contentType(MediaType.APPLICATION_JSON);
-            Map<?, ?> resp = postBuilder.body(Map.of("api_key", key.trim())).retrieve().body(Map.class);
+            Map<String, String> reqBody = new HashMap<>();
+            if (key != null && !key.isBlank()) reqBody.put("api_key", key.trim());
+            if (model != null && !model.isBlank()) reqBody.put("model", model.trim());
+            Map<?, ?> resp = postBuilder.body(reqBody).retrieve().body(Map.class);
             return ResponseEntity.ok(resp);
         } catch (org.springframework.web.client.HttpClientErrorException e) {
             return ResponseEntity.status(e.getStatusCode()).body(e.getResponseBodyAsString());
@@ -98,22 +133,36 @@ public class QuizController {
         }
     }
 
-    @PostMapping("/generate")
+    @PostMapping({"/generate", "/generate-by-topic"})
     public ResponseEntity<?> generate(
-            @RequestBody GenerateRequest input,
+            @RequestBody(required = false) GenerateRequest input,
             @RequestHeader(value = "X-OpenRouter-Api-Key", required = false) String clientOpenRouterApiKey,
             @RequestHeader(value = "X-LLM-Api-Key", required = false) String clientLlmApiKey,
+            @RequestHeader(value = "X-LLM-Model", required = false) String clientLlmModel,
             Authentication a
     ) throws Exception {
         Long student = owner(a);
+        if (input == null) {
+            input = new GenerateRequest(null, null, 5, null, null);
+        }
 
-        String clientApiKey = (clientOpenRouterApiKey != null && !clientOpenRouterApiKey.isBlank())
-                ? clientOpenRouterApiKey.trim()
-                : (clientLlmApiKey != null && !clientLlmApiKey.isBlank())
-                    ? clientLlmApiKey.trim()
-                    : (defaultOpenRouterApiKey != null && !defaultOpenRouterApiKey.isBlank())
-                        ? defaultOpenRouterApiKey.trim()
-                        : null;
+        String model = (input.model() != null && !input.model().isBlank())
+                ? input.model().trim()
+                : (clientLlmModel != null && !clientLlmModel.isBlank())
+                    ? clientLlmModel.trim()
+                    : "nvidia/nemotron-3-ultra-550b-a55b:free";
+
+        boolean isLocal = model != null && (model.equalsIgnoreCase("smartstudy-tutor") || model.equalsIgnoreCase("local") || model.toLowerCase().startsWith("ollama"));
+
+        String clientApiKey = (input.apiKey() != null && !input.apiKey().isBlank())
+                ? input.apiKey().trim()
+                : (clientOpenRouterApiKey != null && !clientOpenRouterApiKey.isBlank())
+                    ? clientOpenRouterApiKey.trim()
+                    : (clientLlmApiKey != null && !clientLlmApiKey.isBlank())
+                        ? clientLlmApiKey.trim()
+                        : (!isLocal && defaultOpenRouterApiKey != null && !defaultOpenRouterApiKey.isBlank())
+                            ? defaultOpenRouterApiKey.trim()
+                            : "";
 
         String topicName = input.topic() != null ? input.topic().trim() : "";
         Long targetMaterialId = input.materialId();
@@ -155,12 +204,15 @@ public class QuizController {
         } else if (material != null) {
             mlReq.put("topic", material.getTitle());
         }
-        if (material != null && material.getExtractedText() != null) {
+        if (material != null && material.getExtractedText() != null && !material.getExtractedText().startsWith("Quiz study topic for:")) {
             mlReq.put("text", material.getExtractedText());
         }
         mlReq.put("count", input.count() != null ? input.count() : 5);
         if (clientApiKey != null) {
             mlReq.put("api_key", clientApiKey);
+        }
+        if (model != null && !model.isBlank()) {
+            mlReq.put("model", model);
         }
 
         Map<?, ?> generated;
@@ -169,6 +221,10 @@ public class QuizController {
                     .contentType(MediaType.APPLICATION_JSON);
             if (clientApiKey != null) {
                 postBuilder.header("X-OpenRouter-Api-Key", clientApiKey);
+                postBuilder.header("X-LLM-Api-Key", clientApiKey);
+            }
+            if (model != null && !model.isBlank()) {
+                postBuilder.header("X-LLM-Model", model);
             }
             generated = postBuilder.body(mlReq).retrieve().body(Map.class);
         } catch (Exception e) {
@@ -181,9 +237,44 @@ public class QuizController {
             return ResponseEntity.status(422).body(Map.of("error", notice));
         }
 
+        // If ML service resolved deep context for this topic, save it to the material record for future tutor grounding
+        String resolvedCtx = Objects.toString(generated.get("resolved_context"), "");
+        if (!resolvedCtx.isBlank() && material != null && (material.getExtractedText() == null || material.getExtractedText().startsWith("Quiz study topic for:"))) {
+            material.complete(resolvedCtx, "Verified factual context for: " + (!topicName.isBlank() ? topicName : material.getTitle()), "[]", "[]");
+            materials.save(material);
+        }
+
         String quizTitle = !topicName.isBlank() ? "Quiz on " + topicName : "Quiz on " + material.getTitle();
         Quiz quiz = new Quiz(student, material.getId(), quizTitle, json.writeValueAsString(questions));
         return ResponseEntity.status(201).body(quizzes.save(quiz));
+    }
+
+    @PostMapping("/generate/{materialId}")
+    public ResponseEntity<?> generateFromMaterial(
+            @PathVariable Long materialId,
+            @RequestBody(required = false) Map<String, Object> body,
+            @RequestHeader(value = "X-OpenRouter-Api-Key", required = false) String clientOpenRouterApiKey,
+            @RequestHeader(value = "X-LLM-Api-Key", required = false) String clientLlmApiKey,
+            @RequestHeader(value = "X-LLM-Model", required = false) String clientLlmModel,
+            Authentication a
+    ) throws Exception {
+        Integer count = 5;
+        String model = null;
+        String apiKey = null;
+        if (body != null) {
+            if (body.get("count") instanceof Number n) {
+                count = n.intValue();
+            }
+            if (body.get("model") != null) {
+                model = body.get("model").toString();
+            }
+            if (body.get("apiKey") != null) {
+                apiKey = body.get("apiKey").toString();
+            } else if (body.get("api_key") != null) {
+                apiKey = body.get("api_key").toString();
+            }
+        }
+        return generate(new GenerateRequest(materialId, null, count, model, apiKey), clientOpenRouterApiKey, clientLlmApiKey, clientLlmModel, a);
     }
 
     @GetMapping("/{id}")

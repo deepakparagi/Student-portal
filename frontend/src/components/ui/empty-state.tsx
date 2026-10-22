@@ -20,62 +20,23 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div
-      className={`glass-card ${className}`}
-      style={{
-        padding: "48px 24px",
-        textAlign: "center",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: "var(--radius-lg)",
-        border: "1px dashed var(--line-bright)",
-        background: "rgba(255, 255, 255, 0.02)",
-      }}
+      className={`rounded-xl border border-dashed border-[#243556] bg-[#111E3B]/40 p-10 text-center flex flex-col items-center justify-center ${className}`}
     >
       {Icon && (
-        <div
-          style={{
-            display: "grid",
-            width: "48px",
-            height: "48px",
-            placeItems: "center",
-            borderRadius: "14px",
-            background: "var(--accent-lime-dim)",
-            border: "1px solid var(--accent-lime-border)",
-            color: "var(--accent-lime)",
-            marginBottom: "16px",
-          }}
-        >
-          <Icon size={24} />
+        <div className="grid w-10 h-10 place-items-center rounded-lg bg-[#1A2A4B] border border-[#243556] text-[#7185FF] mb-3.5">
+          <Icon size={20} />
         </div>
       )}
 
-      <h3
-        style={{
-          fontFamily: "var(--font-serif-family)",
-          fontSize: "20px",
-          fontWeight: 600,
-          color: "var(--paper)",
-          margin: "0 0 8px 0",
-        }}
-      >
+      <h3 className="text-base font-heading font-semibold text-[#F4F7FF] mb-1">
         {title}
       </h3>
 
-      <p
-        style={{
-          fontSize: "14px",
-          color: "var(--mist)",
-          maxWidth: "460px",
-          margin: "0 auto",
-          lineHeight: 1.6,
-        }}
-      >
+      <p className="text-sm text-[#C4CEE4] max-w-sm mb-5 leading-relaxed">
         {description}
       </p>
 
-      {action && <div style={{ marginTop: "20px" }}>{action}</div>}
+      {action && <div>{action}</div>}
     </div>
   );
 }

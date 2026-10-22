@@ -33,9 +33,9 @@ export function PageHeader({
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: "12px",
-        marginBottom: "28px",
-        paddingTop: "4px",
+        gap: "6px",
+        marginBottom: "16px",
+        paddingTop: "0px",
       }}
     >
       {backHref && (
@@ -51,7 +51,7 @@ export function PageHeader({
               color: "var(--mist)",
               transition: "color 0.18s ease",
             }}
-            className="hover:text-lime-300"
+            className="hover:text-[#F4F7FF]"
           >
             <ArrowLeft size={14} />
             <span>{backLabel}</span>

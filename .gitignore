@@ -21,3 +21,12 @@ docs/*.md
 !docs/ui-audit.md
 !docs/ui-redesign-plan.md
 .vscode/
+
+# Local DB, storage & cache
+mysql-fresh-data/
+chroma_data/
+ml/chroma_data/
+ml/chroma_db/
+.tmp-maven-repo/
+.claude/
+cookies.txt

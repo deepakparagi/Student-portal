@@ -49,3 +49,9 @@ app:
   user-storage-quota-mb: ${USER_STORAGE_QUOTA_MB:500}
   dev-seed-enabled: ${DEV_SEED_ENABLED:false}
   openrouter-api-key: ${OPENROUTER_API_KEY:${LLM_API_KEY:}}
+  # Local Ollama AI Configuration
+  ollama-base-url: ${OLLAMA_BASE_URL:http://127.0.0.1:11434}
+  ollama-chat-model: ${OLLAMA_CHAT_MODEL:smartstudy-tutor}
+  ollama-embed-model: ${OLLAMA_EMBED_MODEL:nomic-embed-text}
+  ollama-context-size: ${OLLAMA_CONTEXT_SIZE:8192}
+  ollama-timeout: ${OLLAMA_TIMEOUT:120}

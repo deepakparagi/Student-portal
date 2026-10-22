@@ -57,7 +57,6 @@ type Result = {
 };
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
-
 const OPTION_LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 export default function QuizDetail() {
@@ -186,245 +185,163 @@ export default function QuizDetail() {
   const progressPercent = totalCount > 0 ? Math.round((answeredCount / totalCount) * 100) : 0;
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+    <div className="min-h-screen flex flex-col bg-brand-primary text-brand-neutral">
       <Navbar />
 
-      <main id="main-content" className="app-container page-wrapper" style={{ flex: 1 }}>
+      <main id="main-content" className="app-container page-wrapper flex-1 py-8">
         <PageHeader
           backHref="/quizzes"
           backLabel="All Quizzes"
           eyebrow="Active Recall Assessment"
-          eyebrowIcon={<Sparkles size={13} color="var(--accent-lime)" />}
+          eyebrowIcon={<Sparkles size={13} className="text-brand-neutral" />}
           title={quiz?.title ?? "Practice Quiz Round"}
-          description="Select the most accurate option for each question. Detailed conceptual rationale and source references are revealed upon evaluation."
+          description="Select the most accurate answer. Detailed conceptual rationale and citations are revealed upon evaluation."
           actions={
             <Button
               variant="danger"
               size="sm"
               onClick={() => setShowDeleteModal(true)}
               disabled={busy}
-              icon={<Trash2 size={14} />}
+              icon={<Trash2 size={13} />}
+              className="text-xs"
             >
-              Delete Quiz
+              Delete
             </Button>
           }
         />
 
-
-        {error && <p className="form-error" role="alert" style={{ marginBottom: "24px" }}>{error}</p>}
+        {error && (
+          <div
+            role="alert"
+            className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-rose-950/40 border border-rose-500/20 text-rose-300 text-xs font-medium mb-6"
+          >
+            <span>{error}</span>
+          </div>
+        )}
 
         {/* ===================== VIEW 1: RESULTS VIEW ===================== */}
         {result ? (
-          <section className="results-view" style={{ animation: "rise-in 0.4s ease both" }}>
+          <section className="animate-fade-in space-y-6">
             {/* Scorecard Hero Banner */}
-            <div
-              className="glass-panel"
-              style={{
-                padding: "32px",
-                borderRadius: "20px",
-                background: "linear-gradient(135deg, rgba(30, 68, 48, 0.8), rgba(6, 17, 12, 0.95))",
-                border: "1px solid rgba(196, 255, 106, 0.35)",
-                boxShadow: "var(--shadow)",
-                marginBottom: "32px",
-                display: "flex",
-                flexWrap: "wrap",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "24px",
-              }}
-            >
+            <div className="p-6 rounded-xl bg-brand-secondary border border-brand-neutral/20 flex flex-col sm:flex-row items-center justify-between gap-6">
               <div>
-                <p className="eyebrow" style={{ color: "var(--lime)", marginBottom: "8px" }}>
-                  <Award size={15} style={{ display: "inline", marginRight: "6px" }} />
-                  Evaluation Completed
-                </p>
-                <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
-                  <span style={{ fontSize: "52px", fontWeight: 800, color: "var(--paper)", lineHeight: 1 }}>
-                    {result.score}
-                  </span>
-                  <span style={{ fontSize: "24px", color: "var(--mist)", fontWeight: 500 }}>
-                    / {result.total} Correct
-                  </span>
+                <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1.5 uppercase tracking-wider mb-2">
+                  <Award size={14} /> Evaluation Completed
+                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-brand-light">{result.score}</span>
+                  <span className="text-lg text-brand-neutral font-medium">/ {result.total} Correct</span>
                 </div>
-                <p style={{ marginTop: "10px", color: "var(--mint)", fontSize: "13px", fontWeight: 600 }}>
+                <p className="mt-2 text-xs text-brand-neutral">
                   {result.accuracyPercent >= 80
-                    ? "🌟 Outstanding Mastery! You have strong conceptual grasp."
+                    ? "Outstanding mastery of the subject matter."
                     : result.accuracyPercent >= 50
-                    ? "👍 Solid Performance! Review incorrect items below to cement recall."
-                    : "📖 Revision Needed! Check the explanations below to review concepts."}
+                    ? "Solid performance. Review incorrect items below to cement recall."
+                    : "Revision recommended. Review the explanations below to reinforce concepts."}
                 </p>
-                {result.notice && <p style={{ fontSize: "11px", color: "var(--mist)", margin: "4px 0 0" }}>{result.notice}</p>}
+                {result.notice && <p className="text-[11px] text-brand-muted mt-1">{result.notice}</p>}
               </div>
 
-              {/* Circular Progress Badge */}
-              <div
-                style={{
-                  width: "120px",
-                  height: "120px",
-                  borderRadius: "50%",
-                  border: "6px solid rgba(196, 255, 106, 0.2)",
-                  borderTopColor: "var(--lime)",
-                  borderRightColor: "var(--lime)",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "rgba(0,0,0,0.3)",
-                }}
-              >
-                <span style={{ fontSize: "28px", fontWeight: 800, color: "var(--lime)" }}>
-                  {result.accuracyPercent}%
-                </span>
-                <span style={{ fontSize: "10px", color: "var(--mist)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                  Accuracy
-                </span>
+              {/* Accuracy Badge */}
+              <div className="w-24 h-24 rounded-full border-4 border-brand-neutral/25 border-t-emerald-400 border-r-emerald-400 flex flex-col items-center justify-center shrink-0 bg-brand-raised">
+                <span className="text-2xl font-bold text-emerald-400">{result.accuracyPercent}%</span>
+                <span className="text-[10px] text-brand-muted uppercase tracking-wider">Accuracy</span>
               </div>
             </div>
 
-            {/* Quick Action Navigation */}
-            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "32px" }}>
-              <button
-                type="button"
-                className="button primary"
+            {/* Quick Actions */}
+            <div className="flex flex-wrap gap-2.5">
+              <Button
+                variant="primary"
                 onClick={handleRetake}
-                style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+                icon={<RotateCw size={14} />}
+                className="text-xs"
               >
-                <RotateCw size={15} /> Retake Quiz
-              </button>
-              <Link
-                href="/ai-tutor"
-                className="button quiet"
-                style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
-              >
-                <Sparkles size={15} /> Ask AI Tutor
+                Retake Quiz
+              </Button>
+              <Link href="/ai-tutor">
+                <Button variant="secondary" icon={<Sparkles size={14} />} className="text-xs">
+                  Ask AI Tutor
+                </Button>
               </Link>
-              <Link
-                href="/quizzes"
-                className="button quiet"
-                style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
-              >
-                <ArrowLeft size={15} /> All Quizzes
+              <Link href="/quizzes">
+                <Button variant="ghost" icon={<ArrowLeft size={14} />} className="text-xs">
+                  All Quizzes
+                </Button>
               </Link>
-              <button
-                type="button"
-                className="button quiet"
-                onClick={handleDeleteThisQuiz}
-                disabled={busy}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  color: "#ff7070",
-                  borderColor: "rgba(255, 112, 112, 0.35)",
-                  background: "rgba(255, 70, 70, 0.08)",
-                }}
-                title="Delete this quiz and its recorded attempts"
-              >
-                🗑️ Delete Quiz
-              </button>
             </div>
 
-            {/* Section Header */}
-            <div style={{ marginBottom: "20px" }}>
-              <p className="eyebrow" style={{ color: "var(--mist)", marginBottom: "4px" }}>
-                Step-by-Step Breakdown
-              </p>
-              <h2 style={{ fontSize: "22px", fontWeight: 700, margin: 0, color: "var(--paper)" }}>
-                Question Explanations &amp; Answers
-              </h2>
+            {/* Explanations Header */}
+            <div className="pt-4 border-t border-brand-neutral/20">
+              <h2 className="text-base font-semibold text-brand-light">Question Explanations & Answers</h2>
+              <p className="text-xs text-brand-neutral mt-0.5">Detailed breakdown with source citations</p>
             </div>
 
-            {/* Detailed Question Review Cards */}
-            <div style={{ display: "grid", gap: "20px" }}>
+            {/* Question Breakdown List */}
+            <div className="space-y-4">
               {result.results.map((item, idx) => {
                 const isCorrect = item.correct;
                 return (
                   <div
                     key={idx}
-                    className="glass-panel"
-                    style={{
-                      padding: "24px",
-                      borderRadius: "16px",
-                      border: isCorrect ? "1px solid rgba(46, 213, 115, 0.4)" : "1px solid rgba(255, 107, 107, 0.4)",
-                      background: isCorrect
-                        ? "linear-gradient(135deg, rgba(46, 213, 115, 0.04), rgba(7, 24, 16, 0.85))"
-                        : "linear-gradient(135deg, rgba(255, 107, 107, 0.04), rgba(28, 12, 12, 0.85))",
-                    }}
+                    className={`p-5 rounded-xl border transition-colors ${
+                      isCorrect
+                        ? "bg-brand-secondary border-emerald-500/20"
+                        : "bg-brand-secondary border-rose-500/20"
+                    }`}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--mist)", fontWeight: 700, letterSpacing: "0.08em" }}>
-                        QUESTION {idx + 1}
-                      </span>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] font-mono text-brand-muted">QUESTION {idx + 1}</span>
                       <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "5px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          padding: "3px 10px",
-                          borderRadius: "999px",
-                          background: isCorrect ? "rgba(46, 213, 115, 0.15)" : "rgba(255, 107, 107, 0.15)",
-                          color: isCorrect ? "var(--mint)" : "var(--coral)",
-                        }}
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full ${
+                          isCorrect
+                            ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                            : "bg-rose-500/10 text-rose-300 border border-rose-500/20"
+                        }`}
                       >
                         {isCorrect ? (
                           <>
-                            <CheckCircle2 size={13} /> Correct (+1 point)
+                            <CheckCircle2 size={13} /> Correct (+1)
                           </>
                         ) : (
                           <>
-                            <XCircle size={13} /> Incorrect (0 points)
+                            <XCircle size={13} /> Incorrect
                           </>
                         )}
                       </span>
                     </div>
 
-                    <h3 style={{ fontSize: "17px", fontWeight: 600, color: "var(--paper)", margin: "0 0 16px", lineHeight: 1.45 }}>
+                    <h3 className="text-sm font-semibold text-brand-light mb-3 leading-snug">
                       {item.question}
                     </h3>
 
-                    {/* Answers side by side / stacked */}
-                    <div
-                      style={{
-                        padding: "14px 16px",
-                        borderRadius: "12px",
-                        background: "rgba(0,0,0,0.35)",
-                        border: "1px solid var(--line)",
-                        marginBottom: "14px",
-                        display: "grid",
-                        gap: "8px",
-                        fontSize: "13px",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                        <span style={{ color: "var(--mist)", fontSize: "11px", width: "95px", flexShrink: 0 }}>Your answer:</span>
-                        <strong style={{ color: isCorrect ? "var(--mint)" : "var(--coral)", fontWeight: 600 }}>
+                    {/* Answers Comparison */}
+                    <div className="p-3 rounded-lg bg-brand-raised border border-brand-neutral/25 mb-3 space-y-1.5 text-xs">
+                      <div className="flex items-start gap-2">
+                        <span className="text-brand-muted w-24 shrink-0">Your answer:</span>
+                        <span className={isCorrect ? "text-emerald-400 font-medium" : "text-rose-400 font-medium"}>
                           {item.selectedAnswer || "(No answer selected)"}
-                        </strong>
+                        </span>
                       </div>
                       {!isCorrect && (
-                        <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
-                          <span style={{ color: "var(--mist)", fontSize: "11px", width: "95px", flexShrink: 0 }}>Correct answer:</span>
-                          <strong style={{ color: "var(--lime)", fontWeight: 600 }}>
-                            {item.correctAnswer}
-                          </strong>
+                        <div className="flex items-start gap-2">
+                          <span className="text-brand-muted w-24 shrink-0">Correct answer:</span>
+                          <span className="text-emerald-400 font-medium">{item.correctAnswer}</span>
                         </div>
                       )}
                     </div>
 
-                    {/* Explanation */}
-                    <div style={{ fontSize: "13px", color: "var(--paper-soft)", lineHeight: 1.6, marginBottom: "8px" }}>
-                      <strong style={{ color: "var(--paper)", display: "block", marginBottom: "4px", fontSize: "12px" }}>
-                        Explanation:
-                      </strong>
+                    {/* Rationale */}
+                    <div className="text-xs text-brand-neutral leading-relaxed mb-2.5">
+                      <span className="text-brand-muted font-semibold block mb-1">Explanation:</span>
                       {item.explanation}
                     </div>
 
                     {item.sourceReference && (
-                      <span style={{ fontSize: "11px", color: "var(--mist)", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        <BookOpen size={12} /> Reference: {item.sourceReference}
-                      </span>
+                      <p className="text-[11px] text-brand-muted flex items-center gap-1.5 pt-2 border-t border-brand-neutral/20">
+                        <BookOpen size={12} className="text-brand-neutral" />
+                        <span>Source Reference: {item.sourceReference}</span>
+                      </p>
                     )}
                   </div>
                 );
@@ -433,127 +350,54 @@ export default function QuizDetail() {
           </section>
         ) : (
           /* ===================== VIEW 2: TAKING QUIZ VIEW ===================== */
-          <section className="quiz-questions">
-            {/* Sticky/Subtle Progress Indicator */}
+          <section className="space-y-6">
+            {/* Progress indicator */}
             {totalCount > 0 && (
-              <div
-                className="glass-panel"
-                style={{
-                  padding: "14px 20px",
-                  borderRadius: "14px",
-                  marginBottom: "24px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "16px",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--paper)" }}>
-                    Progress: {answeredCount} / {totalCount} Answered
+              <div className="p-4 rounded-xl bg-brand-secondary border border-brand-neutral/20 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-brand-neutral">
+                    {answeredCount} of {totalCount} Answered
                   </span>
-                  <span style={{ fontSize: "11px", color: "var(--mist)" }}>({progressPercent}%)</span>
+                  <span className="text-xs text-brand-muted">({progressPercent}%)</span>
                 </div>
 
-                <div
-                  style={{
-                    flex: "1 1 200px",
-                    maxWidth: "340px",
-                    height: "8px",
-                    borderRadius: "999px",
-                    background: "rgba(255,255,255,0.08)",
-                    overflow: "hidden",
-                  }}
-                >
+                <div className="flex-1 max-w-xs h-1.5 rounded-full bg-brand-raised overflow-hidden">
                   <div
-                    style={{
-                      height: "100%",
-                      width: `${progressPercent}%`,
-                      background: "linear-gradient(90deg, var(--mint), var(--lime))",
-                      transition: "width 0.3s ease",
-                      borderRadius: "999px",
-                    }}
+                    className="h-full bg-brand-accent rounded-full transition-all duration-300"
+                    style={{ width: `${progressPercent}%` }}
                   />
                 </div>
               </div>
             )}
 
-            {/* Questions List */}
-            <div style={{ display: "grid", gap: "24px" }}>
+            {/* Questions list */}
+            <div className="space-y-4">
               {quiz?.questions.map((question, qIdx) => {
                 const isAnswered = Boolean(answers[qIdx]);
                 return (
                   <div
                     key={qIdx}
-                    className="glass-panel"
-                    style={{
-                      padding: "26px 28px",
-                      borderRadius: "18px",
-                      background: "linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(13, 25, 20, 0.85))",
-                      border: isAnswered ? "1px solid rgba(132, 229, 188, 0.35)" : "1px solid var(--line-bright)",
-                      boxShadow: "var(--shadow)",
-                      transition: "border-color 0.2s ease",
-                    }}
+                    className={`p-5 sm:p-6 rounded-xl bg-brand-secondary border transition-colors ${
+                      isAnswered ? "border-brand-neutral/30" : "border-brand-neutral/20"
+                    }`}
                   >
-                    {/* Question Header */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 800,
-                          letterSpacing: "0.1em",
-                          color: "var(--lime)",
-                          textTransform: "uppercase",
-                        }}
-                      >
+                    <div className="flex items-center justify-between mb-2.5">
+                      <span className="text-[11px] font-mono text-brand-muted uppercase tracking-wider">
                         Question {qIdx + 1} of {quiz.questions.length}
                       </span>
-
                       {question.difficulty && (
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            fontWeight: 700,
-                            padding: "2px 8px",
-                            borderRadius: "999px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.06em",
-                            background:
-                              question.difficulty.toLowerCase() === "easy"
-                                ? "rgba(46, 213, 115, 0.15)"
-                                : question.difficulty.toLowerCase() === "hard"
-                                ? "rgba(255, 107, 107, 0.15)"
-                                : "rgba(255, 214, 105, 0.15)",
-                            color:
-                              question.difficulty.toLowerCase() === "easy"
-                                ? "var(--mint)"
-                                : question.difficulty.toLowerCase() === "hard"
-                                ? "var(--coral)"
-                                : "var(--gold)",
-                          }}
-                        >
+                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-brand-raised border border-brand-neutral/25 text-brand-neutral">
                           {question.difficulty}
                         </span>
                       )}
                     </div>
 
-                    {/* Question Text */}
-                    <h2
-                      style={{
-                        fontSize: "19px",
-                        fontWeight: 600,
-                        color: "var(--paper)",
-                        margin: "0 0 20px",
-                        lineHeight: 1.45,
-                        letterSpacing: "-0.01em",
-                      }}
-                    >
+                    <h2 className="text-sm sm:text-base font-semibold text-brand-light mb-4 leading-snug">
                       {question.question}
                     </h2>
 
-                    {/* Modern Interactive Options Cards */}
-                    <div style={{ display: "grid", gap: "10px", marginBottom: "16px" }}>
+                    {/* Options */}
+                    <div className="space-y-2 mb-3">
                       {question.options.map((option, optIdx) => {
                         const isSelected = answers[qIdx] === option;
                         const optionLetter = OPTION_LETTERS[optIdx] ?? String(optIdx + 1);
@@ -568,68 +412,30 @@ export default function QuizDetail() {
                                 return next;
                               });
                             }}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "14px",
-                              padding: "13px 16px",
-                              borderRadius: "12px",
-                              cursor: "pointer",
-                              border: isSelected ? "1.5px solid var(--lime)" : "1px solid rgba(255, 255, 255, 0.08)",
-                              background: isSelected
-                                ? "linear-gradient(90deg, rgba(196, 255, 106, 0.14), rgba(46, 213, 115, 0.06))"
-                                : "rgba(0, 0, 0, 0.3)",
-                              boxShadow: isSelected ? "0 4px 16px rgba(196, 255, 106, 0.15)" : "none",
-                              transition: "all 0.18s ease",
-                            }}
+                            className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-all ${
+                              isSelected
+                                ? "bg-brand-accent/20 border-brand-neutral/50 text-brand-light shadow-sm"
+                                : "bg-brand-raised border-brand-neutral/20 text-brand-neutral hover:border-brand-neutral/40 hover:bg-brand-raised"
+                            }`}
                           >
-                            {/* Option Letter Pill */}
                             <span
-                              style={{
-                                display: "grid",
-                                width: "28px",
-                                height: "28px",
-                                placeItems: "center",
-                                borderRadius: "8px",
-                                fontSize: "12px",
-                                fontWeight: 800,
-                                flexShrink: 0,
-                                background: isSelected ? "var(--lime)" : "rgba(255, 255, 255, 0.08)",
-                                color: isSelected ? "#07100d" : "var(--paper-soft)",
-                                transition: "all 0.18s ease",
-                              }}
+                              className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+                                isSelected
+                                  ? "bg-brand-accent text-brand-light"
+                                  : "bg-brand-elevated text-brand-neutral"
+                              }`}
                             >
                               {optionLetter}
                             </span>
-
-                            {/* Option Text */}
-                            <span
-                              style={{
-                                fontSize: "14px",
-                                color: isSelected ? "var(--paper)" : "var(--paper-soft)",
-                                fontWeight: isSelected ? 600 : 400,
-                                lineHeight: 1.45,
-                                flex: 1,
-                              }}
-                            >
-                              {option}
-                            </span>
-
-                            {/* Checkmark indicator */}
+                            <span className="text-xs sm:text-sm flex-1 leading-snug">{option}</span>
                             <div
-                              style={{
-                                width: "18px",
-                                height: "18px",
-                                borderRadius: "50%",
-                                border: isSelected ? "2px solid var(--lime)" : "1.5px solid rgba(255, 255, 255, 0.2)",
-                                display: "grid",
-                                placeItems: "center",
-                                background: isSelected ? "var(--lime)" : "transparent",
-                                flexShrink: 0,
-                                transition: "all 0.18s ease",
-                              }}
+                              className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                                isSelected
+                                  ? "border-brand-neutral/40 bg-brand-accent text-brand-light"
+                                  : "border-brand-neutral/30 bg-transparent"
+                              }`}
                             >
-                              {isSelected && <Check size={11} color="#07100d" strokeWidth={3} />}
+                              {isSelected && <Check size={10} strokeWidth={3} />}
                             </div>
                           </div>
                         );
@@ -637,8 +443,9 @@ export default function QuizDetail() {
                     </div>
 
                     {question.source_reference && (
-                      <p style={{ margin: 0, fontSize: "11px", color: "var(--mist)", display: "flex", alignItems: "center", gap: "4px" }}>
-                        <BookOpen size={12} /> Reference: {question.source_reference}
+                      <p className="text-[11px] text-brand-muted flex items-center gap-1.5 pt-2 border-t border-brand-neutral/20">
+                        <BookOpen size={12} className="text-brand-neutral" />
+                        <span>Reference: {question.source_reference}</span>
                       </p>
                     )}
                   </div>
@@ -648,60 +455,39 @@ export default function QuizDetail() {
 
             {/* Submit Action Card */}
             {quiz && (
-              <div
-                className="glass-panel"
-                style={{
-                  marginTop: "32px",
-                  padding: "24px 28px",
-                  borderRadius: "18px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: "16px",
-                }}
-              >
+              <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 700, color: "var(--paper)" }}>
-                    Ready to complete your round?
-                  </h3>
-                  <p style={{ margin: 0, fontSize: "12px", color: "var(--mist)" }}>
+                  <h3 className="text-sm font-semibold text-brand-neutral">Ready to complete your round?</h3>
+                  <p className="text-xs text-brand-neutral mt-0.5">
                     {answeredCount === totalCount
-                      ? "All questions answered. Click submit to calculate accuracy and review explanations."
+                      ? "All questions answered. Submit to compute score and review explanations."
                       : `${totalCount - answeredCount} question(s) remaining. You can submit now or finish answering.`}
                   </p>
                 </div>
 
-                <button
+                <Button
                   id="submit-quiz-btn"
-                  className="button primary"
+                  variant="primary"
                   onClick={() => void submit()}
                   disabled={busy}
-                  style={{
-                    height: "46px",
-                    padding: "0 28px",
-                    fontSize: "14px",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "8px",
-                  }}
+                  loading={busy}
+                  icon={<ArrowRight size={14} />}
+                  className="text-xs py-2 px-5"
                 >
-                  {busy ? "Evaluating Answers..." : "Submit Quiz"}
-                  <ArrowRight size={15} />
-                </button>
+                  {busy ? "Evaluating..." : "Submit Quiz"}
+                </Button>
               </div>
             )}
           </section>
         )}
       </main>
 
-      {/* Accessible Confirmation Dialog */}
+      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={showDeleteModal}
-        title="Delete This Practice Quiz?"
-        description={`Are you sure you want to delete "${quiz?.title || "this quiz"}"? All associated question sets, attempts, scores, and mastery stats will be permanently removed.`}
-        confirmLabel="Yes, Delete Quiz"
-        cancelLabel="Keep Quiz"
+        title="Delete Practice Quiz?"
+        description={`Are you sure you want to delete "${quiz?.title || "this quiz"}"? All associated questions and attempts will be permanently removed.`}
+        confirmLabel="Delete"
         danger={true}
         loading={busy}
         onConfirm={handleDeleteThisQuiz}

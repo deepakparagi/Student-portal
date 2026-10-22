@@ -15,9 +15,9 @@ import {
   X,
   ShieldCheck,
   ShieldAlert,
-  User as UserIcon,
   ChevronDown,
 } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
@@ -30,11 +30,11 @@ type UserData = {
 
 const STUDENT_NAV = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/quizzes", label: "Quizzes", icon: Award },
   { href: "/ai-tutor", label: "AI Tutor", icon: Sparkles },
+  { href: "/quizzes", label: "Quizzes", icon: Award },
   { href: "/tasks", label: "Tasks", icon: ListTodo },
-  { href: "/focus", label: "Focus Mode", icon: Clock },
-  { href: "/analytics", label: "Progress", icon: BarChart3 },
+  { href: "/focus", label: "Focus", icon: Clock },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
 const PARENT_NAV = [
@@ -51,10 +51,12 @@ export function Navbar({ customRightAction }: { customRightAction?: React.ReactN
   const pathname = usePathname();
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [mobileDrawerPath, setMobileDrawerPath] = useState<string | null>(null);
+  const [userMenuPath, setUserMenuPath] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const mobileDrawerOpen = mobileDrawerPath === pathname;
+  const userMenuOpen = userMenuPath === pathname;
 
   useEffect(() => {
     let isMounted = true;
@@ -73,18 +75,12 @@ export function Navbar({ customRightAction }: { customRightAction?: React.ReactN
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setUserMenuOpen(false);
+        setUserMenuPath(null);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // Close mobile drawer on route change
-  useEffect(() => {
-    setMobileDrawerOpen(false);
-    setUserMenuOpen(false);
-  }, [pathname]);
 
   const role = user?.role ?? (pathname.startsWith("/admin") ? "ADMIN" : pathname.startsWith("/parent") ? "PARENT" : "STUDENT");
   const navItems = role === "ADMIN" ? ADMIN_NAV : role === "PARENT" ? PARENT_NAV : STUDENT_NAV;
@@ -102,137 +98,104 @@ export function Navbar({ customRightAction }: { customRightAction?: React.ReactN
 
   return (
     <>
-      <header className="global-navbar" role="banner">
-        <div className="app-container global-navbar-inner">
-          {/* Brand Logo & Tag */}
+      <header className="sticky top-0 z-40 w-full border-b border-[#243556] bg-[#0D1731]/95 backdrop-blur-md h-14" role="banner">
+        <div className="app-container flex items-center justify-between h-full">
+          {/* Brand Logo */}
           <Link
-            className="brand"
+            className="flex items-center text-decoration-none shrink-0 group"
             href={role === "ADMIN" ? "/admin" : role === "PARENT" ? "/parent" : "/dashboard"}
             aria-label="Smart Study Portal Home"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "10px",
-              textDecoration: "none",
-              flexShrink: 0,
-            }}
           >
-            <span
-              style={{
-                display: "grid",
-                width: "32px",
-                height: "32px",
-                placeItems: "center",
-                borderRadius: "8px",
-                background: "var(--accent-lime)",
-                color: "#051409",
-                fontFamily: "var(--font-serif-family)",
-                fontSize: "18px",
-                fontWeight: 700,
-                boxShadow: "0 2px 8px rgba(122, 255, 135, 0.35)",
-              }}
-            >
-              S
-            </span>
-            <span style={{ fontSize: "16px", fontWeight: 700, letterSpacing: "-0.02em", color: "var(--paper)" }}>
-              smart study
-            </span>
+            <Logo size={28} />
           </Link>
 
           {/* Desktop Navigation Links */}
-          <nav className="nav-links-desktop" aria-label="Main Navigation">
+          <nav className="hidden lg:flex items-center gap-1.5" aria-label="Main Navigation">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive =
                 item.href === "/dashboard"
                   ? pathname === "/dashboard"
                   : pathname.startsWith(item.href);
+              const isAi = item.href === "/ai-tutor";
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`nav-item-link ${isActive ? "is-active" : ""}`}
+                  className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ${
+                    isActive
+                      ? "bg-[#1A2A4B] text-[#7185FF] font-semibold border border-[#243556] shadow-sm"
+                      : "text-[#C4CEE4] hover:text-[#F4F7FF] hover:bg-[#1A2A4B]/60"
+                  }`}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <Icon size={15} color={isActive ? "var(--accent-lime)" : "currentColor"} />
+                  <Icon
+                    size={14}
+                    className={
+                      isAi
+                        ? "text-[#55D6E8]"
+                        : isActive
+                        ? "text-[#7185FF]"
+                        : "text-[#8998B7]"
+                    }
+                  />
                   <span>{item.label}</span>
+                  {isAi && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#55D6E8] animate-pulse" />
+                  )}
                 </Link>
               );
             })}
           </nav>
 
           {/* Right Section: Custom action + User Profile Dropdown + Mobile Hamburger */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+          <div className="flex items-center gap-2 shrink-0">
             {customRightAction}
 
             {/* Profile Dropdown */}
-            <div ref={menuRef} style={{ position: "relative" }}>
+            <div ref={menuRef} className="relative">
               <button
                 type="button"
-                onClick={() => setUserMenuOpen((o) => !o)}
+                onClick={() => setUserMenuPath(userMenuOpen ? null : pathname)}
                 aria-expanded={userMenuOpen}
                 aria-label="User account menu"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "5px 10px 5px 6px",
-                  borderRadius: "var(--radius-sm)",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid var(--line)",
-                  cursor: "pointer",
-                  color: "var(--paper)",
-                  minHeight: "40px",
-                }}
+                className="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-[#111E3B] border border-[#243556] hover:border-[#32476E] text-[#F4F7FF] text-[13px] transition-colors cursor-pointer"
               >
                 <span
-                  style={{
-                    display: "grid",
-                    width: "28px",
-                    height: "28px",
-                    placeItems: "center",
-                    borderRadius: "6px",
-                    background: role === "ADMIN" ? "rgba(239, 68, 68, 0.2)" : role === "PARENT" ? "rgba(59, 130, 246, 0.2)" : "rgba(34, 197, 94, 0.2)",
-                    color: role === "ADMIN" ? "#fca5a5" : role === "PARENT" ? "#93c5fd" : "#86efac",
-                    border: "1px solid currentColor",
-                    fontWeight: 700,
-                    fontSize: "13px",
-                  }}
+                  className={`grid w-6 h-6 place-items-center rounded-full text-[11px] font-semibold ${
+                    role === "ADMIN"
+                      ? "bg-[#FB7185]/20 text-[#FB7185] border border-[#FB7185]/30"
+                      : role === "PARENT"
+                      ? "bg-[#7185FF]/20 text-[#7185FF] border border-[#7185FF]/30"
+                      : "bg-[#4ADEA6]/20 text-[#4ADEA6] border border-[#4ADEA6]/30"
+                  }`}
                 >
                   {userInitial}
                 </span>
-                <span style={{ fontSize: "13px", fontWeight: 600, maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="hidden sm:inline">
-                  {user?.name || "My Account"}
+                <span className="hidden sm:inline font-medium max-w-[120px] truncate text-[#F4F7FF]">
+                  {user?.name || "Account"}
                 </span>
-                <ChevronDown size={14} color="var(--mist)" />
+                <ChevronDown size={13} className="text-[#8998B7]" />
               </button>
 
               {userMenuOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "calc(100% + 8px)",
-                    width: "240px",
-                    background: "rgba(10, 20, 14, 0.96)",
-                    border: "1px solid var(--border-medium)",
-                    borderRadius: "var(--radius-md)",
-                    boxShadow: "0 16px 40px rgba(0, 0, 0, 0.5)",
-                    backdropFilter: "blur(20px)",
-                    padding: "12px",
-                    zIndex: 200,
-                  }}
-                >
-                  <div style={{ paddingBottom: "10px", marginBottom: "10px", borderBottom: "1px solid var(--line)" }}>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "var(--paper)" }}>
-                      {user?.name || "Active Session"}
+                <div className="absolute right-0 top-[calc(100%+6px)] w-56 rounded-lg bg-[#111E3B] border border-[#243556] shadow-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2.5 py-2 border-b border-[#243556] mb-1">
+                    <div className="text-[13px] font-semibold text-[#F4F7FF] truncate">
+                      {user?.name || "Logged In"}
                     </div>
-                    <div style={{ fontSize: "11px", color: "var(--mist)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div className="text-[11px] text-[#C4CEE4] truncate mt-0.5">
                       {user?.email || (role === "ADMIN" ? "admin@test.com" : role === "PARENT" ? "parent@test.com" : "student@test.com")}
                     </div>
-                    <div style={{ marginTop: "6px" }}>
-                      <span className={`badge ${role === "ADMIN" ? "badge-danger" : role === "PARENT" ? "badge-info" : "badge-success"}`}>
+                    <div className="mt-1.5">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide uppercase ${
+                        role === "ADMIN"
+                          ? "bg-[#FB7185]/15 text-[#FB7185] border border-[#FB7185]/30"
+                          : role === "PARENT"
+                          ? "bg-[#7185FF]/15 text-[#7185FF] border border-[#7185FF]/30"
+                          : "bg-[#4ADEA6]/15 text-[#4ADEA6] border border-[#4ADEA6]/30"
+                      }`}>
                         {role}
                       </span>
                     </div>
@@ -241,74 +204,36 @@ export function Navbar({ customRightAction }: { customRightAction?: React.ReactN
                   {role === "ADMIN" && (
                     <Link
                       href="/admin"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        padding: "8px 10px",
-                        fontSize: "13px",
-                        color: "var(--paper)",
-                        borderRadius: "6px",
-                      }}
-                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-[#C4CEE4] hover:text-[#F4F7FF] hover:bg-[#1A2A4B] rounded-md transition-colors"
+                      onClick={() => setUserMenuPath(null)}
                     >
-                      <ShieldAlert size={14} color="#fca5a5" /> Admin Console
+                      <ShieldAlert size={14} className="text-[#FB7185]" /> Admin Console
                     </Link>
                   )}
 
                   {role === "PARENT" && (
                     <Link
                       href="/parent"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        padding: "8px 10px",
-                        fontSize: "13px",
-                        color: "var(--paper)",
-                        borderRadius: "6px",
-                      }}
-                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-[#C4CEE4] hover:text-[#F4F7FF] hover:bg-[#1A2A4B] rounded-md transition-colors"
+                      onClick={() => setUserMenuPath(null)}
                     >
-                      <ShieldCheck size={14} color="#93c5fd" /> Parent Portal
+                      <ShieldCheck size={14} className="text-[#7185FF]" /> Parent Portal
                     </Link>
                   )}
 
                   <Link
                     href="/dashboard"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      padding: "8px 10px",
-                      fontSize: "13px",
-                      color: "var(--paper)",
-                      borderRadius: "6px",
-                    }}
-                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2 px-2.5 py-1.5 text-[13px] text-[#C4CEE4] hover:text-[#F4F7FF] hover:bg-[#1A2A4B] rounded-md transition-colors"
+                    onClick={() => setUserMenuPath(null)}
                   >
-                    <LayoutDashboard size={14} color="var(--mint)" /> Student Dashboard
+                    <LayoutDashboard size={14} className="text-[#8998B7]" /> Dashboard
                   </Link>
 
                   <button
                     type="button"
                     onClick={handleLogout}
                     disabled={loggingOut}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      padding: "8px 10px",
-                      marginTop: "4px",
-                      fontSize: "13px",
-                      color: "#fca5a5",
-                      background: "rgba(239, 68, 68, 0.1)",
-                      border: "1px solid rgba(239, 68, 68, 0.2)",
-                      borderRadius: "6px",
-                      cursor: "pointer",
-                      textAlign: "left",
-                    }}
+                    className="w-full flex items-center gap-2 px-2.5 py-1.5 mt-1 text-[13px] text-[#FB7185] hover:text-[#FDA4AF] hover:bg-[#FB7185]/10 rounded-md transition-colors text-left cursor-pointer"
                   >
                     <LogOut size={14} />
                     <span>{loggingOut ? "Signing out..." : "Sign out"}</span>
@@ -317,80 +242,65 @@ export function Navbar({ customRightAction }: { customRightAction?: React.ReactN
               )}
             </div>
 
-            {/* Mobile Drawer Button (< 1024px) */}
+            {/* Mobile Menu Button (< 1024px) */}
             <button
               type="button"
-              className="btn-icon lg:hidden"
-              onClick={() => setMobileDrawerOpen((o) => !o)}
+              className="p-1.5 rounded-md text-[#C4CEE4] hover:text-[#F4F7FF] hover:bg-[#1A2A4B] lg:hidden cursor-pointer"
+              onClick={() => setMobileDrawerPath(mobileDrawerOpen ? null : pathname)}
               aria-expanded={mobileDrawerOpen}
               aria-label="Toggle navigation drawer"
             >
-              {mobileDrawerOpen ? <X size={20} /> : <Menu size={20} />}
+              {mobileDrawerOpen ? <X size={18} /> : <Menu size={18} />}
             </button>
           </div>
         </div>
 
         {/* Mobile Slide-down Drawer */}
         {mobileDrawerOpen && (
-          <div
-            style={{
-              position: "fixed",
-              top: "var(--nav-height)",
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: "rgba(5, 12, 8, 0.96)",
-              backdropFilter: "blur(24px)",
-              padding: "20px",
-              zIndex: 99,
-              display: "flex",
-              flexDirection: "column",
-              gap: "8px",
-              overflowY: "auto",
-            }}
-          >
-            <p className="eyebrow" style={{ marginBottom: "12px" }}>
-              Navigation Menu
-            </p>
+          <div className="fixed inset-x-0 top-14 bottom-0 bg-[#0D1731]/98 backdrop-blur-xl p-4 z-50 flex flex-col gap-1 border-t border-[#243556] overflow-y-auto lg:hidden animate-in fade-in duration-150">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#8998B7] px-3 py-1 mb-1">
+              Menu
+            </div>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive =
                 item.href === "/dashboard"
                   ? pathname === "/dashboard"
                   : pathname.startsWith(item.href);
+              const isAi = item.href === "/ai-tutor";
 
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setMobileDrawerOpen(false)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    padding: "12px 16px",
-                    borderRadius: "10px",
-                    fontSize: "15px",
-                    fontWeight: isActive ? 700 : 500,
-                    color: isActive ? "var(--accent-lime)" : "var(--paper)",
-                    background: isActive ? "var(--accent-lime-dim)" : "rgba(255, 255, 255, 0.03)",
-                    border: isActive ? "1px solid var(--accent-lime-border)" : "1px solid var(--line)",
-                    minHeight: "48px",
-                  }}
+                  onClick={() => setMobileDrawerPath(null)}
+                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-md text-[14px] font-medium transition-colors ${
+                    isActive
+                      ? "bg-[#1A2A4B] text-[#7185FF] font-semibold border border-[#243556]"
+                      : "text-[#C4CEE4] hover:bg-[#1A2A4B]/60 hover:text-[#F4F7FF]"
+                  }`}
                 >
-                  <Icon size={18} color={isActive ? "var(--accent-lime)" : "var(--mint)"} />
+                  <Icon
+                    size={16}
+                    className={
+                      isAi
+                        ? "text-[#55D6E8]"
+                        : isActive
+                        ? "text-[#7185FF]"
+                        : "text-[#8998B7]"
+                    }
+                  />
                   <span>{item.label}</span>
                 </Link>
               );
             })}
 
-            <div style={{ marginTop: "auto", paddingTop: "20px" }}>
+            <div className="mt-auto pt-4 border-t border-[#243556]">
               <button
                 type="button"
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="button danger"
-                style={{ width: "100%", minHeight: "48px" }}
+                className="w-full flex items-center justify-center gap-2 p-2.5 text-[14px] font-medium text-[#FB7185] hover:bg-[#FB7185]/10 rounded-md transition-colors cursor-pointer"
               >
                 <LogOut size={16} />
                 <span>{loggingOut ? "Signing out..." : "Sign out"}</span>
@@ -400,36 +310,46 @@ export function Navbar({ customRightAction }: { customRightAction?: React.ReactN
         )}
       </header>
 
-      {/* Mobile Bottom Bar for Rapid Role Switching (< 1024px) */}
-      <nav className="mobile-bottom-bar" aria-label="Mobile Bottom Bar Navigation">
+      {/* Mobile Bottom Bar (< 1024px) */}
+      <nav className="mobile-bottom-bar bg-[#0D1731] border-t border-[#243556]" aria-label="Mobile Bottom Bar Navigation">
         {navItems.slice(0, 4).map((item) => {
           const Icon = item.icon;
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/dashboard"
               : pathname.startsWith(item.href);
+          const isAi = item.href === "/ai-tutor";
 
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`mobile-nav-item ${isActive ? "is-active" : ""}`}
+              className={`mobile-nav-item ${isActive ? "text-[#7185FF] font-semibold" : "text-[#8998B7] hover:text-[#C4CEE4]"}`}
               aria-current={isActive ? "page" : undefined}
             >
-              <Icon size={18} color={isActive ? "var(--accent-lime)" : "var(--mist)"} />
-              <span>{item.label}</span>
+              <Icon
+                size={18}
+                className={
+                  isAi
+                    ? "text-[#55D6E8]"
+                    : isActive
+                    ? "text-[#7185FF]"
+                    : "text-[#8998B7]"
+                }
+              />
+              <span className="text-[10px] mt-0.5">{item.label}</span>
             </Link>
           );
         })}
         <button
           type="button"
-          onClick={() => setMobileDrawerOpen((o) => !o)}
-          className="mobile-nav-item"
+          onClick={() => setMobileDrawerPath(mobileDrawerOpen ? null : pathname)}
+          className="mobile-nav-item text-[#8998B7] hover:text-[#C4CEE4]"
           style={{ background: "transparent", border: "none", cursor: "pointer" }}
           aria-label="More options"
         >
-          <Menu size={18} color={mobileDrawerOpen ? "var(--accent-lime)" : "var(--mist)"} />
-          <span>More</span>
+          <Menu size={18} />
+          <span className="text-[10px] mt-0.5">More</span>
         </button>
       </nav>
     </>

@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/ui/logo";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1";
 
@@ -82,7 +83,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
     setError("");
 
     if (!isLogin && (!hasMinLength || !hasNumberOrSymbol || !hasUpper)) {
-      setError("Please ensure your password meets all security requirements listed below.");
+      setError("Please ensure your password meets all security requirements.");
       setBusy(false);
       return;
     }
@@ -119,196 +120,92 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const isLogin = mode === "login";
 
   return (
-    <main className="auth-page auth-premium" style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <div className="auth-aurora auth-aurora-one" />
-      <div className="auth-aurora auth-aurora-two" />
-
-      {/* Top Navbar */}
-      <header className="app-container" style={{ paddingTop: "20px", paddingBottom: "10px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link className="brand" href="/" aria-label="Return to Smart Study homepage">
-            <span
-              style={{
-                display: "grid",
-                width: "32px",
-                height: "32px",
-                placeItems: "center",
-                borderRadius: "8px",
-                background: "var(--accent-lime)",
-                color: "#051409",
-                fontFamily: "var(--font-serif-family)",
-                fontSize: "18px",
-                fontWeight: 700,
-              }}
-            >
-              S
-            </span>
-            <span style={{ fontSize: "16px", fontWeight: 700, letterSpacing: "-0.02em" }}>
-              smart study
-            </span>
+    <div className="min-h-screen flex flex-col bg-brand-primary text-brand-neutral">
+      {/* Top Header */}
+      <header className="border-b border-brand-neutral/20 bg-brand-primary/80 backdrop-blur-md sticky top-0 z-30">
+        <div className="app-container h-14 flex items-center justify-between">
+          <Link href="/" className="flex items-center group">
+            <Logo size={28} />
           </Link>
 
           <Link
             href="/"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              fontSize: "13px",
-              fontWeight: 600,
-              color: "var(--mist)",
-              transition: "color 0.2s ease",
-            }}
-            className="hover:text-lime-300"
+            className="text-xs text-brand-neutral hover:text-brand-neutral flex items-center gap-1.5 transition-colors font-medium"
           >
-            Back to home <ArrowRight size={14} />
+            Back to home <ArrowRight size={13} />
           </Link>
         </div>
       </header>
 
-      {/* Content Container */}
-      <div className="app-container" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", paddingBlock: "32px" }}>
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-            gap: "clamp(32px, 6vw, 72px)",
-            width: "100%",
-            maxWidth: "1040px",
-            alignItems: "center",
-          }}
-        >
-          {/* Left Value Story */}
-          <aside className="premium-reveal hidden md:block">
-            <p className="eyebrow eyebrow-glow">
+      {/* Main Content */}
+      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6">
+        <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-14 items-center">
+          {/* Left Column: Value Story */}
+          <div className="hidden md:block space-y-6">
+            <span className="inline-flex items-center gap-1.5 text-xs font-mono text-brand-neutral">
               <Sparkles size={13} /> Source-Grounded Learning
-            </p>
-            <h1 className="page-title" style={{ fontSize: "clamp(2.2rem, 3.8vw, 3.2rem)", margin: "14px 0 16px" }}>
-              {isLogin ? "Your next focused hour starts here." : "A calmer way to make real progress."}
+            </span>
+
+            <h1 className="text-3xl font-bold text-brand-light tracking-tight leading-tight">
+              {isLogin ? "Your next focused hour starts here." : "A calm, structured way to master subjects."}
             </h1>
-            <p className="page-lead" style={{ marginBottom: "28px" }}>
+
+            <p className="text-xs sm:text-sm text-brand-neutral leading-relaxed">
               {isLogin
-                ? "Return to your uploaded notes, adaptive review schedule, and verified focus history."
+                ? "Access your course documents, adaptive review schedule, and verified focus history."
                 : "Organize course notes into adaptive flashcards, source-grounded active recall quizzes, and monitored study sessions."}
             </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "24px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--paper)" }}>
-                <span style={{ display: "grid", width: "24px", height: "24px", placeItems: "center", borderRadius: "6px", background: "rgba(122, 255, 135, 0.15)", color: "var(--accent-lime)" }}>
-                  <Check size={14} />
-                </span>
-                <span style={{ fontSize: "14px" }}>Adaptive study schedules calculated from your notes</span>
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center gap-3 text-xs text-brand-neutral">
+                <div className="w-5 h-5 rounded-full bg-brand-accent/20 text-brand-neutral flex items-center justify-center shrink-0">
+                  <Check size={12} strokeWidth={3} />
+                </div>
+                <span>Adaptive study schedules balanced against your daily time</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--paper)" }}>
-                <span style={{ display: "grid", width: "24px", height: "24px", placeItems: "center", borderRadius: "6px", background: "rgba(122, 255, 135, 0.15)", color: "var(--accent-lime)" }}>
-                  <Brain size={14} />
-                </span>
-                <span style={{ fontSize: "14px" }}>Active recall questions with source citation context</span>
+              <div className="flex items-center gap-3 text-xs text-brand-neutral">
+                <div className="w-5 h-5 rounded-full bg-brand-accent/20 text-brand-neutral flex items-center justify-center shrink-0">
+                  <Brain size={12} />
+                </div>
+                <span>Active recall quizzes with verified source citations</span>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--paper)" }}>
-                <span style={{ display: "grid", width: "24px", height: "24px", placeItems: "center", borderRadius: "6px", background: "rgba(122, 255, 135, 0.15)", color: "var(--accent-lime)" }}>
-                  <BookOpen size={14} />
-                </span>
-                <span style={{ fontSize: "14px" }}>Synchronized parent & student accountability records</span>
+              <div className="flex items-center gap-3 text-xs text-brand-neutral">
+                <div className="w-5 h-5 rounded-full bg-brand-accent/20 text-brand-neutral flex items-center justify-center shrink-0">
+                  <BookOpen size={12} />
+                </div>
+                <span>Synchronized parent and student transparency ledger</span>
               </div>
             </div>
-          </aside>
+          </div>
 
-          {/* Right Auth Card */}
-          <section
-            className="glass-panel premium-reveal-delayed"
-            style={{
-              padding: "clamp(24px, 4vw, 36px)",
-              borderRadius: "var(--radius-xl)",
-              background: "rgba(11, 22, 15, 0.88)",
-              border: "1px solid var(--border-medium)",
-              boxShadow: "0 24px 64px rgba(0,0,0,0.45)",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-              <p className="eyebrow" style={{ margin: 0 }}>
-                {isLogin ? "Welcome back" : "New Account Registration"}
-              </p>
-              <span
-                style={{
-                  display: "grid",
-                  width: "32px",
-                  height: "32px",
-                  placeItems: "center",
-                  borderRadius: "8px",
-                  background: "rgba(255, 255, 255, 0.05)",
-                  border: "1px solid var(--line)",
-                  color: "var(--mint)",
-                }}
-              >
-                <ShieldCheck size={16} />
+          {/* Right Column: Auth Card */}
+          <div className="p-6 sm:p-8 rounded-xl bg-brand-secondary border border-brand-neutral/20 shadow-xl">
+            <div className="mb-5">
+              <span className="text-[11px] font-mono text-brand-muted uppercase tracking-wider block mb-1">
+                {isLogin ? "Welcome back" : "New Account"}
               </span>
+              <h2 className="text-lg font-semibold text-brand-light">
+                {isLogin ? "Sign in to your account" : "Create your study account"}
+              </h2>
             </div>
 
-            <h2
-              style={{
-                fontFamily: "var(--font-serif-family)",
-                fontSize: "26px",
-                fontWeight: 600,
-                color: "var(--paper)",
-                margin: "4px 0 8px",
-                letterSpacing: "-0.015em",
-              }}
-            >
-              {isLogin ? "Sign in to your space" : "Create your study space"}
-            </h2>
-            <p style={{ fontSize: "14px", color: "var(--mist)", margin: "0 0 20px" }}>
-              {isLogin
-                ? "Enter your credentials to access your dashboard."
-                : "Get started with personalized study routines."}
-            </p>
-
-            {/* Discreet Demo Accounts Toggle (Fixes exposed buttons bug) */}
+            {/* Demo Accounts Pill Toggle */}
             {isLogin && (
-              <div
-                style={{
-                  marginBottom: "20px",
-                  padding: "10px 14px",
-                  borderRadius: "var(--radius-md)",
-                  background: "rgba(255, 255, 255, 0.03)",
-                  border: "1px solid var(--line)",
-                }}
-              >
+              <div className="mb-5 p-2.5 rounded-lg bg-brand-raised border border-brand-neutral/25">
                 <button
                   type="button"
                   onClick={() => setShowDemoLogins(!showDemoLogins)}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    background: "none",
-                    border: "none",
-                    color: "var(--mist)",
-                    fontSize: "12px",
-                    fontWeight: 650,
-                    cursor: "pointer",
-                    padding: 0,
-                  }}
+                  className="w-full flex items-center justify-between text-xs text-brand-neutral hover:text-brand-neutral transition-colors"
                   aria-expanded={showDemoLogins}
                 >
-                  <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Sparkles size={13} color="var(--accent-lime)" /> Quick Sign-in (Demo Accounts)
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <Sparkles size={12} className="text-brand-neutral" /> One-Click Demo Accounts
                   </span>
-                  {showDemoLogins ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  {showDemoLogins ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                 </button>
 
                 {showDemoLogins && (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(3, 1fr)",
-                      gap: "8px",
-                      marginTop: "12px",
-                      paddingTop: "10px",
-                      borderTop: "1px solid var(--line)",
-                    }}
-                  >
+                  <div className="grid grid-cols-3 gap-2 mt-2.5 pt-2.5 border-t border-brand-neutral/20">
                     <button
                       type="button"
                       onClick={() => {
@@ -317,10 +214,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                         void performLogin("student@test.com", "Password123!");
                       }}
                       disabled={busy}
-                      className="button secondary btn-compact"
-                      style={{ fontSize: "12px", flexDirection: "column", gap: "3px", minHeight: "44px" }}
+                      className="flex flex-col items-center justify-center py-2 px-1 rounded bg-brand-elevated hover:bg-brand-neutral/10 text-brand-neutral transition-colors text-[11px] font-medium"
                     >
-                      <User size={14} color="var(--mint)" />
+                      <User size={13} className="text-brand-neutral mb-1" />
                       <span>Student</span>
                     </button>
                     <button
@@ -331,10 +227,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                         void performLogin("parent@test.com", "Password123!");
                       }}
                       disabled={busy}
-                      className="button secondary btn-compact"
-                      style={{ fontSize: "12px", flexDirection: "column", gap: "3px", minHeight: "44px" }}
+                      className="flex flex-col items-center justify-center py-2 px-1 rounded bg-brand-elevated hover:bg-brand-neutral/10 text-brand-neutral transition-colors text-[11px] font-medium"
                     >
-                      <Users size={14} color="#93c5fd" />
+                      <Users size={13} className="text-emerald-400 mb-1" />
                       <span>Parent</span>
                     </button>
                     <button
@@ -345,10 +240,9 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                         void performLogin("admin@test.com", "Password123!");
                       }}
                       disabled={busy}
-                      className="button secondary btn-compact"
-                      style={{ fontSize: "12px", flexDirection: "column", gap: "3px", minHeight: "44px" }}
+                      className="flex flex-col items-center justify-center py-2 px-1 rounded bg-brand-elevated hover:bg-brand-neutral/10 text-brand-neutral transition-colors text-[11px] font-medium"
                     >
-                      <ShieldAlert size={14} color="#fca5a5" />
+                      <ShieldAlert size={13} className="text-rose-400 mb-1" />
                       <span>Admin</span>
                     </button>
                   </div>
@@ -356,12 +250,12 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
               </div>
             )}
 
-            {/* Main Form */}
-            <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {/* Form */}
+            <form onSubmit={submit} className="space-y-3.5">
               {!isLogin && (
                 <>
-                  <div className="form-group">
-                    <label htmlFor={nameId} className="form-label">
+                  <div>
+                    <label htmlFor={nameId} className="block text-xs font-medium text-brand-neutral mb-1">
                       Full Name
                     </label>
                     <input
@@ -374,12 +268,12 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                       placeholder="e.g. Alex Johnson"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="form-control"
+                      className="w-full bg-brand-raised border border-brand-neutral/25 rounded-lg px-3 py-2 text-xs text-brand-light placeholder:text-brand-muted focus:outline-none focus:border-brand-neutral/40 transition-colors"
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor={roleId} className="form-label">
+                  <div>
+                    <label htmlFor={roleId} className="block text-xs font-medium text-brand-neutral mb-1">
                       Account Type
                     </label>
                     <select
@@ -387,20 +281,17 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                       name="role"
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
-                      className="form-control"
+                      className="w-full bg-brand-raised border border-brand-neutral/25 rounded-lg px-3 py-2 text-xs text-brand-light focus:outline-none focus:border-brand-neutral/40 transition-colors"
                     >
                       <option value="STUDENT">Student (Study materials, quizzes & tasks)</option>
-                      <option value="PARENT">Parent (Monitor child study progress & scores)</option>
+                      <option value="PARENT">Parent (Monitor student progress & scores)</option>
                     </select>
-                    <span style={{ fontSize: "11px", color: "var(--mist)", marginTop: "2px" }}>
-                      Administrative privileges are provisioned internally by platform administrators.
-                    </span>
                   </div>
                 </>
               )}
 
-              <div className="form-group">
-                <label htmlFor={emailId} className="form-label">
+              <div>
+                <label htmlFor={emailId} className="block text-xs font-medium text-brand-neutral mb-1">
                   Email Address
                 </label>
                 <input
@@ -412,35 +303,27 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                   placeholder="student@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="form-control"
+                  className="w-full bg-brand-raised border border-brand-neutral/25 rounded-lg px-3 py-2 text-xs text-brand-light placeholder:text-brand-muted focus:outline-none focus:border-brand-neutral/40 transition-colors"
                 />
               </div>
 
-              <div className="form-group">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label htmlFor={passwordId} className="form-label" style={{ margin: 0 }}>
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label htmlFor={passwordId} className="block text-xs font-medium text-brand-neutral">
                     Password
                   </label>
                   {isLogin && (
                     <button
                       type="button"
                       onClick={() => setForgotModalOpen(true)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "var(--mist)",
-                        fontSize: "12px",
-                        cursor: "pointer",
-                        padding: 0,
-                      }}
-                      className="hover:text-lime-300"
+                      className="text-[11px] text-brand-muted hover:text-brand-neutral transition-colors"
                     >
                       Forgot password?
                     </button>
                   )}
                 </div>
 
-                <div style={{ position: "relative" }}>
+                <div className="relative">
                   <input
                     id={passwordId}
                     name="password"
@@ -452,75 +335,39 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                     placeholder="••••••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="form-control"
-                    style={{ paddingRight: "44px" }}
+                    className="w-full bg-brand-raised border border-brand-neutral/25 rounded-lg px-3 py-2 pr-9 text-xs text-brand-light placeholder:text-brand-muted focus:outline-none focus:border-brand-neutral/40 transition-colors font-mono"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? "Hide password" : "Show password"}
-                    style={{
-                      position: "absolute",
-                      right: "10px",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      background: "transparent",
-                      border: "none",
-                      color: "var(--mist)",
-                      cursor: "pointer",
-                      padding: "6px",
-                      display: "flex",
-                      alignItems: "center",
-                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-neutral"
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                   </button>
                 </div>
 
-                {/* Password Rule Checklist for Registration */}
+                {/* Password Rules Checklist */}
                 {!isLogin && (
-                  <div
-                    style={{
-                      marginTop: "8px",
-                      padding: "10px 12px",
-                      borderRadius: "8px",
-                      background: "rgba(255, 255, 255, 0.02)",
-                      border: "1px solid var(--line)",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "6px",
-                      fontSize: "12px",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: hasMinLength ? "var(--accent-lime)" : "var(--mist)" }}>
-                      <Check size={13} color={hasMinLength ? "var(--accent-lime)" : "currentColor"} />
+                  <div className="mt-2 p-2.5 rounded-lg bg-brand-raised border border-brand-neutral/25 space-y-1 text-[11px]">
+                    <div className={`flex items-center gap-1.5 ${hasMinLength ? "text-emerald-400" : "text-brand-muted"}`}>
+                      <Check size={11} strokeWidth={3} />
                       <span>At least 10 characters</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: hasUpper ? "var(--accent-lime)" : "var(--mist)" }}>
-                      <Check size={13} color={hasUpper ? "var(--accent-lime)" : "currentColor"} />
+                    <div className={`flex items-center gap-1.5 ${hasUpper ? "text-emerald-400" : "text-brand-muted"}`}>
+                      <Check size={11} strokeWidth={3} />
                       <span>At least one uppercase letter (A-Z)</span>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", color: hasNumberOrSymbol ? "var(--accent-lime)" : "var(--mist)" }}>
-                      <Check size={13} color={hasNumberOrSymbol ? "var(--accent-lime)" : "currentColor"} />
-                      <span>At least one number or special symbol</span>
+                    <div className={`flex items-center gap-1.5 ${hasNumberOrSymbol ? "text-emerald-400" : "text-brand-muted"}`}>
+                      <Check size={11} strokeWidth={3} />
+                      <span>At least one number or symbol</span>
                     </div>
                   </div>
                 )}
               </div>
 
               {error && (
-                <div
-                  role="alert"
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: "var(--radius-sm)",
-                    background: "var(--danger-bg)",
-                    border: "1px solid var(--danger-border)",
-                    color: "#fca5a5",
-                    fontSize: "13px",
-                    lineHeight: 1.5,
-                  }}
-                >
+                <div role="alert" className="p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/20 text-rose-300 text-xs">
                   {error}
                 </div>
               )}
@@ -529,96 +376,76 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
                 type="submit"
                 variant="primary"
                 loading={busy}
-                style={{ width: "100%", marginTop: "6px", minHeight: "46px" }}
+                className="w-full h-9 text-xs font-medium mt-2"
               >
-                {isLogin ? "Sign In" : "Create My Account"}
+                {isLogin ? "Sign In" : "Create Account"}
               </Button>
             </form>
 
-            <div style={{ marginTop: "20px", textAlign: "center", fontSize: "13px", color: "var(--mist)" }}>
+            <div className="mt-4 text-center text-xs text-brand-muted">
               {isLogin ? "New to Smart Study?" : "Already registered?"}{" "}
               <Link
                 href={isLogin ? "/register" : "/login"}
-                style={{ color: "var(--accent-lime)", fontWeight: 700, textDecoration: "none" }}
-                className="hover:underline"
+                className="text-brand-neutral hover:text-brand-light font-medium"
               >
-                {isLogin ? "Create an account" : "Sign in here"}
+                {isLogin ? "Create account" : "Sign in here"}
               </Link>
             </div>
-          </section>
-        </section>
+          </div>
+        </div>
       </div>
 
       {/* Forgot Password Modal */}
       {forgotModalOpen && (
         <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="forgot-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-brand-primary/90 backdrop-blur-sm animate-fade-in"
           onClick={() => setForgotModalOpen(false)}
         >
-          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <HelpCircle size={20} color="var(--accent-lime)" />
-                <h3 id="forgot-modal-title" style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--paper)" }}>
-                  Reset Your Password
-                </h3>
-              </div>
+          <div
+            className="w-full max-w-sm rounded-xl bg-brand-secondary border border-brand-neutral/20 p-5 shadow-2xl space-y-3"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-brand-light">Reset Password</h3>
               <button
                 type="button"
-                className="btn-icon"
                 onClick={() => setForgotModalOpen(false)}
-                style={{ width: "32px", height: "32px" }}
-                aria-label="Close dialog"
+                className="text-brand-muted hover:text-brand-neutral"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             </div>
 
-            <p style={{ fontSize: "13px", color: "var(--mist)", lineHeight: 1.6, marginBottom: "16px" }}>
-              Enter the email address registered with your student or parent account. A secure password reset link will be dispatched.
+            <p className="text-xs text-brand-neutral">
+              Enter your registered email address. We will dispatch a password recovery link.
             </p>
 
             {forgotNotice ? (
-              <div
-                style={{
-                  padding: "12px",
-                  borderRadius: "8px",
-                  background: "var(--success-bg)",
-                  border: "1px solid var(--success-border)",
-                  color: "#86efac",
-                  fontSize: "13px",
-                  marginBottom: "16px",
-                }}
-              >
+              <div className="p-3 rounded-lg bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 text-xs">
                 {forgotNotice}
               </div>
             ) : (
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  setForgotNotice(`If an account exists for ${forgotEmail}, password recovery instructions have been queued.`);
+                  setForgotNotice(`If an account exists for ${forgotEmail}, instructions have been sent.`);
                 }}
+                className="space-y-3"
               >
-                <div className="form-group" style={{ marginBottom: "16px" }}>
-                  <label className="form-label">Email address</label>
-                  <input
-                    type="email"
-                    required
-                    value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="form-control"
-                  />
-                </div>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                  <Button variant="ghost" onClick={() => setForgotModalOpen(false)}>
-                    Close
+                <input
+                  type="email"
+                  required
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full bg-brand-raised border border-brand-neutral/25 rounded-lg px-3 py-2 text-xs text-brand-light placeholder:text-brand-muted focus:outline-none focus:border-brand-neutral/40"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => setForgotModalOpen(false)} className="text-xs">
+                    Cancel
                   </Button>
-                  <Button variant="primary" type="submit">
-                    Send Reset Link
+                  <Button variant="primary" size="sm" type="submit" className="text-xs">
+                    Send Link
                   </Button>
                 </div>
               </form>
@@ -626,13 +453,6 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="app-container" style={{ paddingBlock: "18px", borderTop: "1px solid var(--line)", textAlign: "center" }}>
-        <p style={{ margin: 0, fontSize: "12px", color: "var(--mist)" }}>
-          Your academic records and uploaded materials remain strictly confidential. Built for deep comprehension and sustained focus.
-        </p>
-      </footer>
-    </main>
+    </div>
   );
 }

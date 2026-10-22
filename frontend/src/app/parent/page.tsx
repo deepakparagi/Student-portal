@@ -20,6 +20,7 @@ import {
   Calendar,
   Send,
   ShieldAlert,
+  AlertCircle,
 } from "lucide-react";
 import { Navbar } from "../navbar";
 import { PageHeader } from "@/components/ui/page-header";
@@ -240,198 +241,96 @@ export default function ParentPage() {
 
   const selectedChild = children.find((c) => c.id === selectedChildId);
   const activeReport = selectedChildId ? reports[selectedChildId] : null;
-
-  // Study inactivity warning
   const isInactive = activeReport && activeReport.weeklyStudyMinutes === 0 && activeReport.studyMinutes === 0;
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-brand-primary text-brand-neutral">
       <Navbar />
-      <main className="app-container" style={{ paddingBottom: "100px", paddingTop: "24px" }}>
+
+      <main className="app-container page-wrapper flex-1 py-8">
         <PageHeader
-          eyebrow="Family Academic Oversight"
+          eyebrow="Academic Oversight"
+          eyebrowIcon={<Users size={13} className="text-brand-neutral" />}
           title="Parent Portal"
-          description="Support your student's learning journey with real-time visibility into their study sessions, quiz comprehension, and scheduled deadlines."
+          description="Support your student's learning journey with real-time visibility into study sessions, quiz comprehension, and tasks."
           actions={
             <Button
               variant="secondary"
               size="sm"
               onClick={() => void handleRefresh()}
               loading={refreshing}
-              icon={<RefreshCw size={14} />}
+              icon={<RefreshCw size={13} />}
+              className="text-xs"
             >
-              Refresh Telemetry
+              Refresh
             </Button>
           }
         />
 
         {error && (
-          <div
-            role="alert"
-            style={{
-              padding: "14px 18px",
-              borderRadius: "12px",
-              background: "rgba(255, 107, 107, 0.1)",
-              border: "1px solid rgba(255, 107, 107, 0.3)",
-              color: "var(--danger)",
-              fontSize: "13px",
-              marginBottom: "24px",
-            }}
-          >
-            {error}
+          <div role="alert" className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-rose-950/40 border border-rose-500/20 text-rose-300 text-xs font-medium mb-6">
+            <AlertCircle size={15} className="shrink-0 text-rose-400" />
+            <span>{error}</span>
           </div>
         )}
 
         {notice && (
-          <div
-            role="status"
-            style={{
-              padding: "14px 18px",
-              borderRadius: "12px",
-              background: "rgba(196, 255, 106, 0.08)",
-              border: "1px solid rgba(196, 255, 106, 0.25)",
-              color: "var(--accent-lime)",
-              fontSize: "13px",
-              marginBottom: "24px",
-            }}
-          >
-            {notice}
+          <div role="status" className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 text-xs font-medium mb-6">
+            <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
+            <span>{notice}</span>
           </div>
         )}
 
         {/* Link Student Account Card */}
-        <section
-          style={{
-            background: "var(--surface-1)",
-            border: "1px solid var(--border-subtle)",
-            borderRadius: "20px",
-            padding: "24px 28px",
-            marginBottom: "32px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              flexWrap: "wrap",
-              gap: "20px",
-            }}
-          >
+        <section className="p-5 sm:p-6 rounded-xl bg-brand-secondary border border-brand-neutral/20 mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h2 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 4px" }}>
-                Link a Student Account
-              </h2>
-              <p style={{ margin: 0, fontSize: "13px", color: "var(--mist)" }}>
-                Send an invitation to your student's registered email. Once approved from their dashboard, their progress will display here.
+              <h2 className="text-sm font-semibold text-brand-light">Link Student Account</h2>
+              <p className="text-xs text-brand-muted mt-0.5">
+                Send an invitation to your student&apos;s email. Once approved on their dashboard, progress will appear here.
               </p>
             </div>
 
-            <form
-              onSubmit={handleSendRequest}
-              style={{
-                display: "flex",
-                gap: "10px",
-                flexWrap: "wrap",
-                alignItems: "center",
-              }}
-            >
-              <div style={{ position: "relative" }}>
-                <Mail
-                  size={15}
-                  style={{
-                    position: "absolute",
-                    left: "14px",
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    color: "var(--mist)",
-                  }}
-                />
+            <form onSubmit={handleSendRequest} className="flex items-center gap-2">
+              <div className="relative">
+                <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted" />
                 <input
                   name="email"
                   type="email"
                   required
                   placeholder="student@example.com"
-                  style={{
-                    height: "44px",
-                    padding: "0 14px 0 38px",
-                    borderRadius: "10px",
-                    background: "rgba(0,0,0,0.35)",
-                    border: "1px solid var(--border-subtle)",
-                    color: "var(--paper)",
-                    fontSize: "13px",
-                    minWidth: "260px",
-                  }}
+                  className="w-56 sm:w-64 bg-brand-raised border border-brand-neutral/25 rounded-lg pl-8 pr-3 py-1.5 text-xs text-brand-light placeholder:text-brand-muted focus:outline-none focus:border-brand-neutral/40"
                 />
               </div>
-              <Button
-                variant="primary"
-                size="default"
-                type="submit"
-                loading={busy}
-                icon={<Send size={15} />}
-                style={{ minHeight: "44px" }}
-              >
-                Send Request
+              <Button type="submit" variant="primary" size="sm" loading={busy} icon={<Send size={12} />} className="text-xs py-1.5 px-3">
+                Send
               </Button>
             </form>
           </div>
 
           {/* Pending Invitations Strip */}
           {sentLinks.length > 0 && (
-            <div
-              style={{
-                marginTop: "20px",
-                paddingTop: "20px",
-                borderTop: "1px solid var(--border-subtle)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  color: "var(--mist)",
-                  display: "block",
-                  marginBottom: "10px",
-                }}
-              >
+            <div className="mt-4 pt-4 border-t border-brand-neutral/20">
+              <span className="text-[11px] font-mono text-brand-muted uppercase tracking-wider block mb-2">
                 Pending Authorization Requests ({sentLinks.length})
               </span>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+              <div className="flex flex-wrap gap-2">
                 {sentLinks.map((link) => (
                   <div
                     key={link.id}
-                    style={{
-                      background: "rgba(255, 255, 255, 0.03)",
-                      border: "1px dashed var(--border-subtle)",
-                      borderRadius: "12px",
-                      padding: "10px 14px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      fontSize: "13px",
-                    }}
+                    className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-brand-raised border border-brand-neutral/25 text-xs"
                   >
                     <div>
-                      <strong style={{ display: "block", color: "var(--paper)" }}>
-                        {link.student.name}
-                      </strong>
-                      <span style={{ fontSize: "11px", color: "var(--mist)" }}>
-                        {link.student.email} • Pending approval
-                      </span>
+                      <span className="font-medium text-brand-neutral">{link.student.name}</span>
+                      <span className="text-brand-muted text-[11px] ml-1.5">({link.student.email})</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        setLinkToCancel({ id: link.id, name: link.student.name })
-                      }
-                      style={{ fontSize: "12px", height: "32px", padding: "0 8px", color: "var(--danger)" }}
+                    <button
+                      type="button"
+                      onClick={() => setLinkToCancel({ id: link.id, name: link.student.name })}
+                      className="text-[11px] text-rose-400 hover:text-rose-300 ml-1"
                     >
                       Cancel
-                    </Button>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -441,33 +340,22 @@ export default function ParentPage() {
 
         {/* Linked Students & Reports Section */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "64px 0", color: "var(--mist)" }}>
-            <RefreshCw size={24} className="animate-spin" style={{ margin: "0 auto 12px" }} />
+          <div className="text-center py-16 text-brand-muted text-xs">
+            <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-brand-neutral" />
             <p>Loading linked student profiles...</p>
           </div>
         ) : children.length === 0 ? (
           <EmptyState
             icon={Users}
-            title="No Linked Students Yet"
-            description="Enter your student's registered email above to send an authorization link. Once approved, their verified focus sessions, task velocity, and quiz scores will automatically appear here."
+            title="No Linked Students"
+            description="Enter your student's registered email above to send an authorization invitation."
           />
         ) : (
           <div>
             {/* Student Switcher Bar */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "12px",
-                marginBottom: "24px",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--mist)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Active Student:
-                </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-medium text-brand-muted">Student:</span>
                 {children.map((c) => {
                   const active = selectedChildId === c.id;
                   return (
@@ -478,27 +366,13 @@ export default function ParentPage() {
                         setSelectedChildId(c.id);
                         if (!reports[c.id]) void loadChildReport(c.id);
                       }}
-                      style={{
-                        minHeight: "44px",
-                        padding: "8px 18px",
-                        borderRadius: "12px",
-                        border: active
-                          ? "1px solid var(--accent-lime)"
-                          : "1px solid var(--border-subtle)",
-                        background: active
-                          ? "rgba(196, 255, 106, 0.12)"
-                          : "rgba(255, 255, 255, 0.03)",
-                        color: active ? "var(--accent-lime)" : "var(--paper)",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        boxShadow: active ? "0 0 16px rgba(196, 255, 106, 0.12)" : "none",
-                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                        active
+                          ? "bg-brand-accent/20 border-brand-neutral/40 text-brand-light"
+                          : "bg-brand-raised border-brand-neutral/20 text-brand-neutral hover:text-brand-neutral"
+                      }`}
                     >
-                      <Users size={15} />
+                      <Users size={12} />
                       {c.name}
                     </button>
                   );
@@ -506,192 +380,98 @@ export default function ParentPage() {
               </div>
 
               {selectedChild?.linkId && (
-                <Button
-                  variant="ghost"
-                  size="sm"
+                <button
+                  type="button"
                   onClick={() =>
                     setStudentToDisconnect({
                       linkId: selectedChild.linkId!,
                       name: selectedChild.name,
                     })
                   }
-                  icon={<UserX size={14} />}
-                  style={{ color: "var(--danger)" }}
+                  className="inline-flex items-center gap-1 text-xs text-rose-400 hover:text-rose-300 transition-colors self-start sm:self-auto"
                 >
-                  Disconnect Student
-                </Button>
+                  <UserX size={12} />
+                  <span>Disconnect</span>
+                </button>
               )}
             </div>
 
-            {/* Inactivity Alert Banner if applicable */}
+            {/* Inactivity Alert Banner */}
             {isInactive && (
-              <div
-                style={{
-                  padding: "14px 20px",
-                  borderRadius: "14px",
-                  background: "rgba(255, 151, 127, 0.08)",
-                  border: "1px solid rgba(255, 151, 127, 0.3)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  marginBottom: "24px",
-                }}
-              >
-                <ShieldAlert size={18} color="var(--danger)" />
-                <div style={{ fontSize: "13px", color: "var(--paper)" }}>
-                  <strong>Activity Alert:</strong> {selectedChild?.name} has not recorded any verified study sessions or task completions yet. Consider reviewing their schedule together.
+              <div className="flex items-center gap-3 p-3.5 rounded-lg bg-amber-950/20 border border-amber-500/20 text-xs text-amber-300 mb-6">
+                <ShieldAlert size={16} className="shrink-0 text-amber-400" />
+                <div>
+                  <strong>Activity Notice:</strong> {selectedChild?.name} has not recorded any verified study sessions or task completions this week.
                 </div>
               </div>
             )}
 
             {/* Selected Child Academic Overview */}
             {activeReport ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                {/* Data-Driven Honest Status Assessment Banner */}
+              <div className="space-y-6">
+                {/* Academic Status Assessment Banner */}
                 {activeReport.statusAssessment && (
-                  <div
-                    style={{
-                      background: activeReport.statusAssessment.includes("Needs") ||
-                        activeReport.statusAssessment.includes("Review")
-                        ? "rgba(255, 151, 127, 0.07)"
-                        : "rgba(196, 255, 106, 0.07)",
-                      border: activeReport.statusAssessment.includes("Needs") ||
-                        activeReport.statusAssessment.includes("Review")
-                        ? "1px solid rgba(255, 151, 127, 0.3)"
-                        : "1px solid rgba(196, 255, 106, 0.25)",
-                      borderRadius: "16px",
-                      padding: "16px 20px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "14px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: "38px",
-                        height: "38px",
-                        borderRadius: "10px",
-                        background: activeReport.statusAssessment.includes("Needs") ||
-                          activeReport.statusAssessment.includes("Review")
-                          ? "rgba(255, 107, 107, 0.15)"
-                          : "rgba(196, 255, 106, 0.15)",
-                        color: activeReport.statusAssessment.includes("Needs") ||
-                          activeReport.statusAssessment.includes("Review")
-                          ? "var(--danger)"
-                          : "var(--accent-lime)",
-                        display: "grid",
-                        placeItems: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Sparkles size={20} />
+                  <div className="p-4 rounded-xl bg-brand-secondary border border-brand-neutral/20 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-brand-accent/20 text-brand-neutral flex items-center justify-center shrink-0">
+                      <Sparkles size={16} />
                     </div>
                     <div>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.1em",
-                          color: "var(--mist)",
-                          fontWeight: 700,
-                        }}
-                      >
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-brand-muted block">
                         Academic Status Assessment
                       </span>
-                      <p style={{ margin: "2px 0 0", fontSize: "14px", fontWeight: 600, color: "var(--paper)" }}>
+                      <p className="text-xs font-medium text-brand-neutral mt-0.5">
                         {activeReport.statusAssessment}
                       </p>
                     </div>
                   </div>
                 )}
 
-                {/* 4 Core Stat Cards (Synchronized with student database) */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                    gap: "16px",
-                  }}
-                >
-                  {/* 1. Study Time */}
+                {/* 4 Core Stat Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
                   <StatCard
                     label="Total Study Time"
                     value={activeReport.studyMinutes}
                     unit="mins"
                     icon={Clock}
-                    iconColor="var(--accent-lime)"
-                    subtext={`Today: ${activeReport.todayStudyMinutes}m | Past 7 days: ${activeReport.weeklyStudyMinutes}m`}
+                    iconColor="#7692FF"
+                    subtext={`Today: ${activeReport.todayStudyMinutes}m | Week: ${activeReport.weeklyStudyMinutes}m`}
                   />
 
-                  {/* 2. Tasks Completed */}
                   <StatCard
                     label="Task Completion"
                     value={`${activeReport.tasksCompleted}/${activeReport.tasksTotal}`}
                     icon={CheckCircle2}
-                    iconColor="var(--mint)"
+                    iconColor="#10b981"
                     progressPercent={activeReport.taskCompletionPercent}
                     subtext={`${activeReport.taskCompletionPercent}% schedule velocity`}
                   />
 
-                  {/* 3. Quiz Accuracy */}
                   <StatCard
                     label="Quiz Accuracy"
                     value={activeReport.quizAttempts > 0 ? `${activeReport.quizAccuracyPercent}%` : "—"}
                     icon={Award}
-                    iconColor="#f6c445"
+                    iconColor="#f59e0b"
                     subtext={`Based on ${activeReport.quizAttempts} test attempt${activeReport.quizAttempts === 1 ? "" : "s"}`}
                   />
 
-                  {/* 4. Study Library */}
                   <StatCard
                     label="Study Library"
                     value={activeReport.materialsTotal ?? activeReport.materialsStudied?.length ?? 0}
                     unit="docs"
                     icon={BookOpen}
-                    iconColor="var(--info)"
-                    subtext="Processed course notes & textbooks"
+                    iconColor="#ABD2FA"
+                    subtext="Processed course notes"
                   />
                 </div>
 
-                {/* Sub-Navigation Tabs with Lucide Icons (Replacing emoji icons) */}
-                <div
-                  role="tablist"
-                  aria-label="Parent view tabs"
-                  style={{
-                    display: "flex",
-                    borderBottom: "1px solid var(--border-subtle)",
-                    gap: "12px",
-                    marginTop: "8px",
-                    overflowX: "auto",
-                    paddingBottom: "2px",
-                  }}
-                >
+                {/* Sub-Navigation Tabs */}
+                <div role="tablist" className="flex border-b border-brand-neutral/20 gap-2 overflow-x-auto pb-0.5">
                   {[
-                    {
-                      key: "overview",
-                      label: "Overview & Recents",
-                      icon: BarChart3,
-                    },
-                    {
-                      key: "quizzes",
-                      label: `Quizzes (${activeReport.recentQuizzes?.length ?? 0})`,
-                      icon: Award,
-                    },
-                    {
-                      key: "sessions",
-                      label: `Study Sessions (${activeReport.recentSessions?.length ?? 0})`,
-                      icon: Clock,
-                    },
-                    {
-                      key: "tasks",
-                      label: `Tasks (${activeReport.recentTasks?.length ?? 0})`,
-                      icon: ListTodo,
-                    },
-                    {
-                      key: "materials",
-                      label: `Library (${activeReport.materialsTotal ?? activeReport.materialsStudied?.length ?? 0})`,
-                      icon: BookOpen,
-                    },
+                    { key: "overview", label: "Overview", icon: BarChart3 },
+                    { key: "quizzes", label: `Quizzes (${activeReport.recentQuizzes?.length ?? 0})`, icon: Award },
+                    { key: "sessions", label: `Sessions (${activeReport.recentSessions?.length ?? 0})`, icon: Clock },
+                    { key: "tasks", label: `Tasks (${activeReport.recentTasks?.length ?? 0})`, icon: ListTodo },
+                    { key: "materials", label: `Library (${activeReport.materialsTotal ?? activeReport.materialsStudied?.length ?? 0})`, icon: BookOpen },
                   ].map((tab) => {
                     const active = activeTab === tab.key;
                     const Icon = tab.icon;
@@ -702,24 +482,13 @@ export default function ParentPage() {
                         role="tab"
                         aria-selected={active}
                         onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                        style={{
-                          minHeight: "44px",
-                          padding: "10px 14px",
-                          background: "none",
-                          border: "none",
-                          borderBottom: active ? "2px solid var(--accent-lime)" : "2px solid transparent",
-                          color: active ? "var(--accent-lime)" : "var(--mist)",
-                          fontWeight: active ? 600 : 500,
-                          fontSize: "13px",
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          whiteSpace: "nowrap",
-                          transition: "color 0.15s ease",
-                        }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
+                          active
+                            ? "border-brand-neutral/40 text-brand-neutral"
+                            : "border-transparent text-brand-muted hover:text-brand-neutral"
+                        }`}
                       >
-                        <Icon size={15} />
+                        <Icon size={13} />
                         {tab.label}
                       </button>
                     );
@@ -728,57 +497,24 @@ export default function ParentPage() {
 
                 {/* Tab 1: Overview */}
                 {activeTab === "overview" && (
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
-                      gap: "24px",
-                    }}
-                  >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Recent Quizzes Snapshot */}
-                    <div
-                      style={{
-                        background: "var(--surface-1)",
-                        border: "1px solid var(--border-subtle)",
-                        borderRadius: "18px",
-                        padding: "24px",
-                      }}
-                    >
-                      <h3 style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Award size={16} color="var(--accent-lime)" /> Recent Quiz Comprehension
+                    <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                      <h3 className="text-xs font-semibold text-brand-neutral mb-3 flex items-center gap-1.5">
+                        <Award size={14} className="text-brand-neutral" /> Recent Quizzes
                       </h3>
                       {activeReport.recentQuizzes && activeReport.recentQuizzes.length > 0 ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <div className="space-y-2">
                           {activeReport.recentQuizzes.slice(0, 4).map((q) => (
-                            <div
-                              key={q.id}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "12px 14px",
-                                background: "rgba(255, 255, 255, 0.02)",
-                                border: "1px solid var(--border-subtle)",
-                                borderRadius: "10px",
-                              }}
-                            >
-                              <div>
-                                <span style={{ fontSize: "13px", fontWeight: 600, display: "block", color: "var(--paper)" }}>
-                                  {q.title}
-                                </span>
-                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>
-                                  {new Date(q.submittedAt).toLocaleDateString()}
-                                </span>
+                            <div key={q.id} className="flex items-center justify-between p-2.5 rounded-lg bg-brand-raised border border-brand-neutral/20 text-xs">
+                              <div className="min-w-0 flex-1 mr-2">
+                                <span className="font-medium text-brand-neutral block truncate">{q.title}</span>
+                                <span className="text-[11px] text-brand-muted">{new Date(q.submittedAt).toLocaleDateString()}</span>
                               </div>
                               <span
-                                style={{
-                                  fontSize: "13px",
-                                  fontWeight: 700,
-                                  color: q.accuracyPercent >= 70 ? "var(--accent-lime)" : "var(--danger)",
-                                  background: q.accuracyPercent >= 70 ? "rgba(196,255,106,0.1)" : "rgba(255,107,107,0.1)",
-                                  padding: "4px 10px",
-                                  borderRadius: "8px",
-                                }}
+                                className={`text-[11px] font-mono px-2 py-0.5 rounded font-semibold ${
+                                  q.accuracyPercent >= 70 ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                                }`}
                               >
                                 {q.score}/{q.total} ({q.accuracyPercent}%)
                               </span>
@@ -786,267 +522,106 @@ export default function ParentPage() {
                           ))}
                         </div>
                       ) : (
-                        <p style={{ fontSize: "13px", color: "var(--mist)", margin: 0 }}>No quizzes taken yet.</p>
+                        <p className="text-xs text-brand-muted">No quizzes taken yet.</p>
                       )}
                     </div>
 
                     {/* Recent Focus Sessions Snapshot */}
-                    <div
-                      style={{
-                        background: "var(--surface-1)",
-                        border: "1px solid var(--border-subtle)",
-                        borderRadius: "18px",
-                        padding: "24px",
-                      }}
-                    >
-                      <h3 style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                        <Clock size={16} color="var(--mint)" /> Recent Focus Sessions
+                    <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                      <h3 className="text-xs font-semibold text-brand-neutral mb-3 flex items-center gap-1.5">
+                        <Clock size={14} className="text-emerald-400" /> Recent Study Sessions
                       </h3>
                       {activeReport.recentSessions && activeReport.recentSessions.length > 0 ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <div className="space-y-2">
                           {activeReport.recentSessions.slice(0, 4).map((s) => (
-                            <div
-                              key={s.id}
-                              style={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                padding: "12px 14px",
-                                background: "rgba(255, 255, 255, 0.02)",
-                                border: "1px solid var(--border-subtle)",
-                                borderRadius: "10px",
-                              }}
-                            >
-                              <div>
-                                <span style={{ fontSize: "13px", fontWeight: 600, display: "block", color: "var(--paper)" }}>
-                                  {s.title || "General Focus & Study"}
-                                </span>
-                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>
-                                  {new Date(s.startedAt).toLocaleString(undefined, {
-                                    month: "short",
-                                    day: "numeric",
-                                    hour: "numeric",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
+                            <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg bg-brand-raised border border-brand-neutral/20 text-xs">
+                              <div className="min-w-0 flex-1 mr-2">
+                                <span className="font-medium text-brand-neutral block truncate">{s.title || "Study Session"}</span>
+                                <span className="text-[11px] text-brand-muted">{new Date(s.startedAt).toLocaleDateString()}</span>
                               </div>
-                              <span
-                                style={{
-                                  fontSize: "13px",
-                                  fontWeight: 700,
-                                  color: "var(--accent-lime)",
-                                  background: "rgba(196,255,106,0.1)",
-                                  padding: "4px 10px",
-                                  borderRadius: "8px",
-                                }}
-                              >
+                              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-brand-accent/20 text-brand-neutral font-medium">
                                 {formatDuration(s.durationMinutes)}
                               </span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p style={{ fontSize: "13px", color: "var(--mist)", margin: 0 }}>No study sessions logged yet.</p>
+                        <p className="text-xs text-brand-muted">No study sessions logged yet.</p>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* Tab 2: All Quizzes */}
+                {/* Tab 2: Quizzes */}
                 {activeTab === "quizzes" && (
-                  <div
-                    style={{
-                      background: "var(--surface-1)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRadius: "18px",
-                      padding: "24px",
-                    }}
-                  >
-                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
-                      Quiz History & Accuracy
-                    </h3>
+                  <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                    <h3 className="text-xs font-semibold text-brand-neutral mb-3">Quiz History & Accuracy</h3>
                     {activeReport.recentQuizzes && activeReport.recentQuizzes.length > 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div className="space-y-2">
                         {activeReport.recentQuizzes.map((q) => (
-                          <div
-                            key={q.id}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "14px 18px",
-                              background: "rgba(255, 255, 255, 0.02)",
-                              borderRadius: "12px",
-                              border: "1px solid var(--border-subtle)",
-                            }}
-                          >
+                          <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-brand-raised border border-brand-neutral/20 text-xs">
                             <div>
-                              <strong style={{ fontSize: "14px", color: "var(--paper)", display: "block" }}>
-                                {q.title}
-                              </strong>
-                              <span style={{ fontSize: "12px", color: "var(--mist)" }}>
-                                Completed {new Date(q.submittedAt).toLocaleString()}
-                              </span>
+                              <span className="font-medium text-brand-neutral block">{q.title}</span>
+                              <span className="text-[11px] text-brand-muted">Completed {new Date(q.submittedAt).toLocaleString()}</span>
                             </div>
-                            <div style={{ textAlign: "right" }}>
-                              <span
-                                style={{
-                                  fontSize: "15px",
-                                  fontWeight: 700,
-                                  color: q.accuracyPercent >= 70 ? "var(--accent-lime)" : "var(--danger)",
-                                }}
-                              >
+                            <div className="text-right">
+                              <span className={`text-xs font-bold font-mono ${q.accuracyPercent >= 70 ? "text-emerald-400" : "text-rose-400"}`}>
                                 {q.score} / {q.total}
                               </span>
-                              <span style={{ display: "block", fontSize: "11px", color: "var(--mist)" }}>
-                                {q.accuracyPercent}% Accuracy
-                              </span>
+                              <span className="block text-[11px] text-brand-muted">{q.accuracyPercent}% Accuracy</span>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>
-                        No quizzes completed by this student yet.
-                      </p>
+                      <p className="text-xs text-brand-muted">No quizzes completed yet.</p>
                     )}
                   </div>
                 )}
 
-                {/* Tab 3: All Sessions */}
+                {/* Tab 3: Sessions */}
                 {activeTab === "sessions" && (
-                  <div
-                    style={{
-                      background: "var(--surface-1)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRadius: "18px",
-                      padding: "24px",
-                    }}
-                  >
-                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
-                      Verified Study Sessions
-                    </h3>
+                  <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                    <h3 className="text-xs font-semibold text-brand-neutral mb-3">Study Sessions</h3>
                     {activeReport.recentSessions && activeReport.recentSessions.length > 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div className="space-y-2">
                         {activeReport.recentSessions.map((s) => (
-                          <div
-                            key={s.id}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "14px 18px",
-                              background: "rgba(255, 255, 255, 0.02)",
-                              borderRadius: "12px",
-                              border: "1px solid var(--border-subtle)",
-                            }}
-                          >
+                          <div key={s.id} className="flex items-center justify-between p-3 rounded-lg bg-brand-raised border border-brand-neutral/20 text-xs">
                             <div>
-                              <span style={{ fontSize: "14px", fontWeight: 600, display: "block", color: "var(--paper)" }}>
-                                {s.title || "General Focus & Study"}
-                              </span>
-                              <span style={{ fontSize: "12px", color: "var(--mist)" }}>
-                                {new Date(s.startedAt).toLocaleString()}
-                              </span>
+                              <span className="font-medium text-brand-neutral block">{s.title || "Study Session"}</span>
+                              <span className="text-[11px] text-brand-muted">{new Date(s.startedAt).toLocaleString()}</span>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  padding: "3px 8px",
-                                  borderRadius: "6px",
-                                  background: "rgba(196, 255, 106, 0.1)",
-                                  color: "var(--accent-lime)",
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {s.status}
-                              </span>
-                              <strong style={{ fontSize: "15px", color: "var(--accent-lime)" }}>
-                                {formatDuration(s.durationMinutes)}
-                              </strong>
-                            </div>
+                            <span className="text-xs font-mono font-semibold text-brand-neutral">
+                              {formatDuration(s.durationMinutes)}
+                            </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>
-                        No study sessions recorded yet.
-                      </p>
+                      <p className="text-xs text-brand-muted">No study sessions recorded yet.</p>
                     )}
                   </div>
                 )}
 
-                {/* Tab 4: Study Tasks */}
+                {/* Tab 4: Tasks */}
                 {activeTab === "tasks" && (
-                  <div
-                    style={{
-                      background: "var(--surface-1)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRadius: "18px",
-                      padding: "24px",
-                    }}
-                  >
-                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
-                      Scheduled Tasks & Milestones
-                    </h3>
+                  <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                    <h3 className="text-xs font-semibold text-brand-neutral mb-3">Scheduled Tasks</h3>
                     {activeReport.recentTasks && activeReport.recentTasks.length > 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div className="space-y-2">
                         {activeReport.recentTasks.map((t) => (
-                          <div
-                            key={t.id}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "14px 18px",
-                              background: "rgba(255, 255, 255, 0.02)",
-                              borderRadius: "12px",
-                              border: "1px solid var(--border-subtle)",
-                            }}
-                          >
+                          <div key={t.id} className="flex items-center justify-between p-3 rounded-lg bg-brand-raised border border-brand-neutral/20 text-xs">
                             <div>
-                              <strong
-                                style={{
-                                  fontSize: "14px",
-                                  color: t.status === "COMPLETED" ? "var(--mist)" : "var(--paper)",
-                                  textDecoration: t.status === "COMPLETED" ? "line-through" : "none",
-                                }}
-                              >
+                              <span className={`font-medium block ${t.status === "COMPLETED" ? "line-through text-brand-muted" : "text-brand-neutral"}`}>
                                 {t.title}
-                              </strong>
-                              {t.scheduledDate && (
-                                <span style={{ display: "block", fontSize: "11px", color: "var(--mist)", marginTop: "2px" }}>
-                                  Target date: {t.scheduledDate}
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  padding: "3px 8px",
-                                  borderRadius: "6px",
-                                  background: "rgba(255, 255, 255, 0.06)",
-                                  color: "var(--mist)",
-                                }}
-                              >
-                                {t.estimatedMinutes}m est.
                               </span>
-                              <span
-                                style={{
-                                  fontSize: "11px",
-                                  padding: "3px 8px",
-                                  borderRadius: "6px",
-                                  background:
-                                    t.status === "COMPLETED"
-                                      ? "rgba(196, 255, 106, 0.12)"
-                                      : "rgba(255, 204, 0, 0.12)",
-                                  color:
-                                    t.status === "COMPLETED" ? "var(--accent-lime)" : "#f6c445",
-                                  fontWeight: 600,
-                                }}
-                              >
+                              {t.scheduledDate && <span className="text-[11px] text-brand-muted">Target: {t.scheduledDate}</span>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-brand-muted">{t.estimatedMinutes}m</span>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                                t.status === "COMPLETED" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                              }`}>
                                 {t.status}
                               </span>
                             </div>
@@ -1054,73 +629,40 @@ export default function ParentPage() {
                         ))}
                       </div>
                     ) : (
-                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>No tasks scheduled yet.</p>
+                      <p className="text-xs text-brand-muted">No tasks scheduled yet.</p>
                     )}
                   </div>
                 )}
 
                 {/* Tab 5: Library */}
                 {activeTab === "materials" && (
-                  <div
-                    style={{
-                      background: "var(--surface-1)",
-                      border: "1px solid var(--border-subtle)",
-                      borderRadius: "18px",
-                      padding: "24px",
-                    }}
-                  >
-                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
-                      Uploaded Study Materials
-                    </h3>
+                  <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                    <h3 className="text-xs font-semibold text-brand-neutral mb-3">Study Materials</h3>
                     {activeReport.materialsStudied && activeReport.materialsStudied.length > 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div className="space-y-2">
                         {activeReport.materialsStudied.map((m) => (
-                          <div
-                            key={m.id}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "14px 18px",
-                              background: "rgba(255, 255, 255, 0.02)",
-                              borderRadius: "12px",
-                              border: "1px solid var(--border-subtle)",
-                            }}
-                          >
-                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                              <BookOpen size={16} color="var(--accent-lime)" />
+                          <div key={m.id} className="flex items-center justify-between p-3 rounded-lg bg-brand-raised border border-brand-neutral/20 text-xs">
+                            <div className="flex items-center gap-2.5">
+                              <BookOpen size={14} className="text-brand-neutral shrink-0" />
                               <div>
-                                <strong style={{ fontSize: "14px", color: "var(--paper)", display: "block" }}>
-                                  {m.title}
-                                </strong>
-                                <span style={{ fontSize: "11px", color: "var(--mist)" }}>
-                                  Uploaded on {new Date(m.createdAt).toLocaleDateString()}
-                                </span>
+                                <span className="font-medium text-brand-neutral block">{m.title}</span>
+                                <span className="text-[11px] text-brand-muted">Uploaded {new Date(m.createdAt).toLocaleDateString()}</span>
                               </div>
                             </div>
-                            <span
-                              style={{
-                                fontSize: "11px",
-                                padding: "4px 10px",
-                                borderRadius: "8px",
-                                background: "rgba(196, 255, 106, 0.1)",
-                                color: "var(--accent-lime)",
-                                fontWeight: 600,
-                              }}
-                            >
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand-accent/20 text-brand-neutral font-mono">
                               {m.status}
                             </span>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p style={{ fontSize: "13px", color: "var(--mist)" }}>No documents uploaded yet.</p>
+                      <p className="text-xs text-brand-muted">No documents uploaded yet.</p>
                     )}
                   </div>
                 )}
               </div>
             ) : (
-              <div style={{ textAlign: "center", padding: "48px 0", color: "var(--mist)" }}>
+              <div className="text-center py-10 text-brand-muted text-xs">
                 <p>Loading student report details...</p>
               </div>
             )}
@@ -1128,33 +670,30 @@ export default function ParentPage() {
         )}
       </main>
 
-      {/* Cancel Link Request Dialog */}
+      {/* Confirmation Dialogs */}
       {linkToCancel && (
         <ConfirmDialog
           isOpen={true}
           title="Cancel Link Request?"
-          description={`Are you sure you want to cancel the pending authorization request for ${linkToCancel.name}?`}
+          description={`Are you sure you want to cancel the authorization request for ${linkToCancel.name}?`}
           confirmLabel="Cancel Request"
-          cancelLabel="Keep Request"
           danger={true}
           onConfirm={() => void executeCancelLink(linkToCancel.id)}
           onCancel={() => setLinkToCancel(null)}
         />
       )}
 
-      {/* Disconnect Student Dialog */}
       {studentToDisconnect && (
         <ConfirmDialog
           isOpen={true}
-          title={`Disconnect from ${studentToDisconnect.name}?`}
-          description="Are you sure you want to remove this student connection? You will no longer have access to their study sessions, task updates, or quiz scores until re-authorized."
-          confirmLabel="Disconnect Student"
-          cancelLabel="Keep Connected"
+          title={`Disconnect ${studentToDisconnect.name}?`}
+          description="Are you sure you want to remove this student connection? You will no longer have access to their study progress until re-authorized."
+          confirmLabel="Disconnect"
           danger={true}
           onConfirm={() => void executeCancelLink(studentToDisconnect.linkId)}
           onCancel={() => setStudentToDisconnect(null)}
         />
       )}
-    </>
+    </div>
   );
 }

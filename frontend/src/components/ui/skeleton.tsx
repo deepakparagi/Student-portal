@@ -23,7 +23,7 @@ export function Skeleton({
         width,
         height,
         borderRadius,
-        background: "linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%)",
+        background: "linear-gradient(90deg, #111E3B 25%, #1A2A4B 50%, #111E3B 75%)",
         backgroundSize: "200% 100%",
         animation: "skeleton-loading 1.5s infinite ease-in-out",
         ...style,

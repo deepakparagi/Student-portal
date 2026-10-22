@@ -22,106 +22,51 @@ export function StatCard({
   unit,
   subtext,
   icon: Icon,
-  iconColor = "var(--mint)",
-  accentColor = "var(--paper)",
   progressPercent,
   className = "",
   onClick,
 }: StatCardProps) {
   return (
     <article
-      className={`glass-panel ${className}`}
+      className={`rounded-xl border border-[#243556] bg-[#111E3B] p-4 flex flex-col justify-between transition-all duration-150 hover:border-[#32476E] ${
+        onClick ? "cursor-pointer hover:bg-[#1A2A4B]" : ""
+      } ${className}`}
       onClick={onClick}
-      style={{
-        padding: "20px 22px",
-        borderRadius: "var(--radius-lg)",
-        position: "relative",
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        minHeight: "128px",
-        cursor: onClick ? "pointer" : "default",
-        transition: "transform 0.2s ease, border-color 0.2s ease",
-      }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", marginBottom: "8px" }}>
-        <span
-          style={{
-            fontSize: "12px",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: "var(--mist)",
-            fontWeight: 700,
-            lineHeight: 1.3,
-          }}
-        >
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <span className="text-xs font-medium text-[#8998B7]">
           {label}
         </span>
         {Icon && (
-          <div
-            style={{
-              display: "grid",
-              width: "32px",
-              height: "32px",
-              placeItems: "center",
-              borderRadius: "8px",
-              background: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid var(--line)",
-              flexShrink: 0,
-            }}
-          >
-            <Icon size={16} color={iconColor} />
+          <div className="grid w-7 h-7 place-items-center rounded-lg bg-[#080D1C] border border-[#243556] text-[#7185FF] shrink-0">
+            <Icon size={14} />
           </div>
         )}
       </div>
 
-      <div style={{ display: "flex", alignItems: "baseline", gap: "6px", margin: "4px 0" }}>
-        <span
-          style={{
-            fontSize: "2.1rem",
-            fontWeight: 700,
-            fontFamily: "var(--font-serif-family)",
-            color: accentColor,
-            lineHeight: 1.1,
-            letterSpacing: "-0.02em",
-          }}
-        >
+      <div className="flex items-baseline gap-1.5 my-1">
+        <span className="text-2xl font-heading font-bold tracking-tight text-[#F4F7FF]">
           {value}
         </span>
         {unit && (
-          <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--mist)" }}>
+          <span className="text-xs text-[#8998B7] font-medium">
             {unit}
           </span>
         )}
       </div>
 
-      {progressPercent !== undefined && (
-        <div
-          style={{
-            marginTop: "8px",
-            marginBottom: "4px",
-            height: "5px",
-            borderRadius: "3px",
-            background: "rgba(255, 255, 255, 0.08)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              width: `${Math.min(Math.max(progressPercent, 0), 100)}%`,
-              height: "100%",
-              background: "var(--accent-lime)",
-              borderRadius: "3px",
-              transition: "width 0.5s ease-out",
-            }}
-          />
+      {subtext && (
+        <div className="text-xs text-[#C4CEE4] mt-1 flex items-center gap-1">
+          {subtext}
         </div>
       )}
 
-      {subtext && (
-        <div style={{ fontSize: "12px", color: "var(--mist)", marginTop: "4px", lineHeight: 1.4 }}>
-          {subtext}
+      {typeof progressPercent === "number" && (
+        <div className="mt-3 w-full bg-[#1A2A4B] rounded-full h-1.5 overflow-hidden">
+          <div
+            className="h-full bg-[#7185FF] rounded-full transition-all duration-300"
+            style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
+          />
         </div>
       )}
     </article>

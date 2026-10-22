@@ -12,6 +12,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import jakarta.servlet.http.HttpServletResponse;
+
 @Configuration
 @org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
 public class SecurityConfig {
@@ -20,7 +22,7 @@ public class SecurityConfig {
         var c = new CorsConfiguration();
         c.setAllowedOriginPatterns(List.of("http://localhost:[*]", "http://127.0.0.1:[*]", webOrigin));
         c.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS", "PUT"));
-        c.setAllowedHeaders(List.of("*", "Content-Type", "Authorization", "X-CSRF-TOKEN", "X-OpenRouter-Api-Key", "X-LLM-Api-Key", "Accept", "Origin", "X-Requested-With"));
+        c.setAllowedHeaders(List.of("*", "Content-Type", "Authorization", "X-CSRF-TOKEN", "X-OpenRouter-Api-Key", "X-LLM-Api-Key", "X-LLM-Model", "Accept", "Origin", "X-Requested-With"));
         c.setExposedHeaders(List.of("*", "Set-Cookie", "Authorization"));
         c.setAllowCredentials(true);
         var source = new UrlBasedCorsConfigurationSource();
@@ -39,6 +41,18 @@ public class SecurityConfig {
             .csrf(c -> c.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource))
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(e -> e
+                .authenticationEntryPoint((req, res, ex) -> {
+                    res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    res.setContentType("application/json");
+                    res.getWriter().write("{\"error\":\"Authentication required. Please log in.\",\"code\":\"UNAUTHORIZED\"}");
+                })
+                .accessDeniedHandler((req, res, ex) -> {
+                    res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    res.setContentType("application/json");
+                    res.getWriter().write("{\"error\":\"Access denied. Insufficient permissions.\",\"code\":\"FORBIDDEN\"}");
+                })
+            )
             .authorizeHttpRequests(a -> a
                 .requestMatchers(HttpMethod.POST,
                     "/api/v1/auth/register",

@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, useEffect, type FormEvent, type KeyboardEvent, type ChangeEvent } from "react";
+import { useRef, useState, useEffect, useCallback, type FormEvent, type KeyboardEvent, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
 import {
   Sparkles,
   Paperclip,
@@ -9,21 +10,43 @@ import {
   Copy,
   Check,
   Search,
-  BookOpen,
-  Brain,
-  X,
   FileText,
-  Clock,
-  Info,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  MessageSquare,
+  Shield,
+  Plus,
+  PanelLeftClose,
+  PanelLeftOpen,
+  X,
 } from "lucide-react";
 import { Navbar } from "../navbar";
-import { Button, MarkdownView } from "@/components/ui";
+import { Button } from "@/components/ui/button";
+import { MarkdownView } from "@/components/ui/markdown-view";
+import {
+  useTutorConversations,
+  useCreateTutorConversation,
+  useAskTutor,
+  useAskTutorGrounded,
+  useDeleteTutorConversation,
+  useClearAllTutorConversations,
+  useRenameTutorConversation,
+  useTutorHealth,
+  type TutorAskResponse,
+  type TutorSource,
+} from "@/hooks/useTutor";
+import { useMaterials, useUploadMaterial } from "@/hooks/useMaterials";
+import { api } from "@/lib/api";
 
 type ChatMessage = {
   id: string | number;
   role: "USER" | "TUTOR";
   content: string;
   timestamp: string;
+  sources?: TutorSource[];
+  grounded?: boolean;
   attachment?: {
     name: string;
     size: string;
@@ -37,55 +60,197 @@ type Conversation = {
   messages: ChatMessage[];
 };
 
+type DocumentItem = {
+  id: number;
+  title: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  status: string;
+  summary: string | null;
+  createdAt: string;
+};
+
 const STARTER_PROMPTS = [
-  "Explain active transport vs passive diffusion with examples",
-  "Summarize the key differences between SQL and NoSQL databases",
-  "Create 3 practice recall questions for my upcoming Biology test",
-  "How does binary search achieve O(log n) time complexity?",
+  "Summarize key concepts from my notes",
+  "Generate 5 active recall questions",
+  "Explain the core arguments in this document",
+  "What are the main definitions and formulas?",
 ];
 
+const FILE_TYPE_LABELS: Record<string, string> = {
+  "application/pdf": "PDF",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "DOCX",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "XLSX",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": "PPTX",
+  "text/plain": "TXT",
+  "text/csv": "CSV",
+  "text/markdown": "MD",
+};
+
 export default function TutorPage() {
+  const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const [conversations, setConversations] = useState<Conversation[]>([
-    {
-      id: "conv-1",
-      title: "Binary search & logarithmic runtime",
-      lastActive: "Today",
-      messages: [
-        {
-          id: 1,
-          role: "USER",
-          content: "What is binary search and what is its time complexity?",
-          timestamp: "10:14 AM",
-        },
-        {
-          id: 2,
-          role: "TUTOR",
-          content:
-            "### Binary Search Overview\n\n**Binary search** is an efficient divide-and-conquer algorithm for finding an element in a **sorted array**.\n\n- **Mechanism**: It repeatedly divides the search interval in half. If the target value is less than the middle element, the search narrows to the lower half; otherwise, to the upper half.\n- **Time Complexity**: **O(log n)** in both average and worst cases.\n- **Space Complexity**: **O(1)** iterative, or **O(log n)** recursive call stack.\n\n> *Note: Binary search requires random access and a sorted dataset to guarantee logarithmic bounds.*",
-          timestamp: "10:14 AM",
-        },
-      ],
-    },
-  ]);
+  // Auth verification
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080/api/v1"}/auth/me`, { credentials: "include" })
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          router.push("/login?redirect=/ai-tutor");
+        }
+      })
+      .catch(() => {});
+  }, [router]);
 
-  const [activeConvId, setActiveConvId] = useState<string>("conv-1");
+  // Data fetching
+  const { data: conversationsData = [], refetch: refetchConversations } = useTutorConversations();
+  const { data: materialsData = { content: [] }, refetch: refetchMaterials } = useMaterials();
+  const { data: healthData } = useTutorHealth();
+
+  // Mutations
+  const createConversation = useCreateTutorConversation();
+  const askTutor = useAskTutor();
+  const askTutorGrounded = useAskTutorGrounded();
+  const deleteConversation = useDeleteTutorConversation();
+  const clearAllConversations = useClearAllTutorConversations();
+  const renameConversation = useRenameTutorConversation();
+  const uploadMaterial = useUploadMaterial();
+
+  // State
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string>("");
   const [inputText, setInputText] = useState("");
-  const [attachedFile, setAttachedFile] = useState<{ name: string; size: string } | null>(null);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; size: string; file: File } | null>(null);
   const [isTyping, setIsTyping] = useState(false);
   const [copiedId, setCopiedId] = useState<string | number | null>(null);
   const [searchConv, setSearchConv] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<number[]>([]);
+  const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
+  const [showSourceModal, setShowSourceModal] = useState<{ source: TutorSource; messageId: string | number } | null>(null);
+  const [loadingConvId, setLoadingConvId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>("smartstudy-tutor");
 
-  const activeConv = conversations.find((c) => c.id === activeConvId);
-  const messages = activeConv?.messages || [];
+  useEffect(() => {
+    const saved = localStorage.getItem("ai_tutor_model");
+    if (saved) setSelectedModel(saved);
+  }, []);
+
+  const handleModelChange = (m: string) => {
+    setSelectedModel(m);
+    localStorage.setItem("ai_tutor_model", m);
+  };
+
+  // Sync conversations list from server without wiping already-loaded messages or active local chats
+  useEffect(() => {
+    if (!conversationsData || conversationsData.length === 0) {
+      setConversations((prev) => prev.filter((c) => c.id.startsWith("conv-")));
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setConversations((prev) => {
+        const prevMap = new Map(prev.map((c) => [c.id, c]));
+        const localConvs = prev.filter((c) => c.id.startsWith("conv-"));
+        const serverConvs = conversationsData.map((c: any) => {
+          const idStr = String(c.id);
+          const existing = prevMap.get(idStr);
+          return {
+            id: idStr,
+            title: c.title,
+            lastActive: c.createdAt,
+            messages: existing && existing.messages && existing.messages.length > 0 ? existing.messages : [],
+          };
+        });
+        return [...localConvs, ...serverConvs];
+      });
+      setActiveConvId((curr) => {
+        if (!curr && conversationsData.length > 0) {
+          return String(conversationsData[0].id);
+        }
+        return curr;
+      });
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [conversationsData]);
+
+  // Load conversation messages whenever activeConvId changes
+  useEffect(() => {
+    if (!activeConvId || activeConvId.startsWith("conv-")) return;
+    const numId = parseInt(activeConvId, 10);
+    if (isNaN(numId)) return;
+
+    let isSubscribed = true;
+    const timeoutId = window.setTimeout(() => {
+      setLoadingConvId(activeConvId);
+      void api.get<{ conversation: any; messages: any[] }>(`/tutor/conversations/${numId}`)
+      .then((res) => {
+        if (!isSubscribed || !res) return;
+        const fetchedMessages: ChatMessage[] = (res.messages || []).map((m: any) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          timestamp: m.createdAt
+            ? new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "Just now",
+          sources: m.sources,
+          grounded: Array.isArray(m.sources) && m.sources.length > 0,
+        }));
+
+        setConversations((prev) => {
+          const exists = prev.some((c) => c.id === activeConvId);
+          if (exists) {
+            return prev.map((c) =>
+              c.id === activeConvId
+                ? {
+                    ...c,
+                    title: res.conversation?.title || c.title,
+                    messages: fetchedMessages,
+                  }
+                : c
+            );
+          } else if (res.conversation) {
+            return [
+              {
+                id: String(res.conversation.id),
+                title: res.conversation.title,
+                lastActive: res.conversation.createdAt,
+                messages: fetchedMessages,
+              },
+              ...prev,
+            ];
+          }
+          return prev;
+        });
+      })
+      .catch((err) => {
+        console.error("Failed to load conversation details:", err);
+      })
+      .finally(() => {
+        if (isSubscribed) setLoadingConvId(null);
+      });
+    }, 0);
+
+    return () => {
+      isSubscribed = false;
+      window.clearTimeout(timeoutId);
+    };
+  }, [activeConvId]);
 
   // Auto-scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isTyping]);
+  }, [conversations, activeConvId, isTyping]);
+
+  const activeConv = conversations.find((c) => c.id === activeConvId);
+  const messages = activeConv?.messages || [];
+  const documents: DocumentItem[] = (materialsData.content || []) as unknown as DocumentItem[];
+  const availableDocuments = documents.filter((d) => d.status === "COMPLETED");
+  const isOllamaHealthy = Boolean((healthData as any)?.ollama?.server === "healthy");
 
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,11 +259,12 @@ export default function TutorPage() {
       setAttachedFile({
         name: file.name,
         size: `${sizeMb === "0.0" ? "< 1" : sizeMb} MB`,
+        file,
       });
     }
   };
 
-  const handleSendMessage = (textToSend?: string) => {
+  const handleSendMessage = useCallback(async (textToSend?: string) => {
     const query = (textToSend || inputText).trim();
     if (!query && !attachedFile) return;
 
@@ -108,62 +274,193 @@ export default function TutorPage() {
       role: "USER",
       content: query || `Uploaded document: ${attachedFile?.name}`,
       timestamp: now,
-      attachment: attachedFile ? { ...attachedFile } : undefined,
+      attachment: attachedFile ? { name: attachedFile.name, size: attachedFile.size } : undefined,
     };
 
     const currentAttached = attachedFile;
+    const currentQuery = query;
+    const currentSelectedMaterials = [...selectedMaterialIds];
+    let currentConvId = activeConvId;
+
     setInputText("");
     setAttachedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
 
-    // Append user message
-    setConversations((prev) =>
-      prev.map((c) => {
-        if (c.id === activeConvId) {
-          return {
-            ...c,
-            lastActive: "Just now",
-            messages: [...c.messages, userMsg],
-          };
-        }
-        return c;
-      })
-    );
+    // If no active conversation exists, generate a new conversation entry immediately
+    if (!currentConvId || !conversations.some((c) => c.id === currentConvId)) {
+      currentConvId = `conv-${Date.now()}`;
+      setActiveConvId(currentConvId);
+      const newConv: Conversation = {
+        id: currentConvId,
+        title: query ? (query.length > 28 ? query.slice(0, 28) + "..." : query) : "Study Chat",
+        lastActive: "Just now",
+        messages: [userMsg],
+      };
+      setConversations((prev) => [newConv, ...prev.filter((c) => c.id !== currentConvId)]);
+    } else {
+      setConversations((prev) =>
+        prev.map((c) => {
+          if (c.id === currentConvId) {
+            return {
+              ...c,
+              lastActive: "Just now",
+              messages: [...c.messages, userMsg],
+            };
+          }
+          return c;
+        })
+      );
+    }
 
-    // Simulated typing state for grounded answer
     setIsTyping(true);
-    setTimeout(() => {
+
+    try {
+      let newlyUploadedId: number | undefined;
+      // If a document was attached with the paperclip, upload it to /materials first so it is processed & indexed
+      if (currentAttached) {
+        try {
+          const uploadedMat = await uploadMaterial.mutateAsync(currentAttached.file);
+          if (uploadedMat?.id) {
+            newlyUploadedId = uploadedMat.id;
+            // Poll for processing to reach COMPLETED so text & chunks are ready
+            for (let pollCount = 0; pollCount < 25; pollCount++) {
+              try {
+                const checkRes = await api.get<{ status: string }>(`/materials/${newlyUploadedId}`);
+                if (checkRes?.status === "COMPLETED") break;
+              } catch {}
+              await new Promise((r) => setTimeout(r, 500));
+            }
+            setSelectedMaterialIds([newlyUploadedId]);
+            refetchMaterials();
+          }
+        } catch (uploadErr) {
+          console.warn("Material upload warning, proceeding with query:", uploadErr);
+        }
+      }
+
+      // If user uploaded a new document, target ONLY that document!
+      // Otherwise use selected materials; if none selected, ground against all completed notes
+      let targetMaterialIds = newlyUploadedId ? [newlyUploadedId] : [...currentSelectedMaterials];
+      if (targetMaterialIds.length === 0 && availableDocuments.length > 0) {
+        targetMaterialIds = availableDocuments.map((d) => d.id);
+      }
+
+      const dbConvId = currentConvId && !currentConvId.startsWith("conv-") && !isNaN(Number(currentConvId))
+        ? parseInt(currentConvId, 10)
+        : undefined;
+
+      let result: TutorAskResponse;
+      if (targetMaterialIds.length > 0) {
+        result = await askTutorGrounded.mutateAsync({
+          question: currentQuery || `Analyze and answer key questions from: ${currentAttached?.name}`,
+          materialIds: targetMaterialIds,
+          conversationId: dbConvId,
+          model: selectedModel,
+        });
+      } else {
+        result = await askTutor.mutateAsync({
+          question: currentQuery || `Analyze: ${currentAttached?.name}`,
+          conversationId: dbConvId,
+          grounded: true,
+          model: selectedModel,
+        });
+      }
+
       const tutorReply: ChatMessage = {
         id: Date.now() + 1,
         role: "TUTOR",
-        content: currentAttached
-          ? `### Document Synthesized: ${currentAttached.name}\n\n` +
-            `I have processed the uploaded file (\`${currentAttached.name}\`, ${currentAttached.size}) for your question on **"${query || currentAttached.name}"**.\n\n` +
-            `- **Core Insight**: The document centers on foundational principles and systematic methodology.\n` +
-            `- **Active Review**: Try generating a 5-question active recall round from the Quizzes tab to test your retention on this material.\n\n` +
-            `*Document-grounded citation engine (Preview Mode): responses strictly cross-reference sentences from your notes.*`
-          : `### Response on: ${query}\n\n` +
-            `Here is a concise conceptual breakdown regarding **"${query}"**:\n\n` +
-            `- **Key Definition**: Focus on the underlying mechanisms and real-world boundary conditions.\n` +
-            `- **Exam Tip**: Ensure you can contrast this with closely related topics without confusing terminology.\n\n` +
-            `*Tip: You can also practice active-recall flashcards or focus intervals for this topic in the portal.*`,
+        content: result.messages[result.messages.length - 1]?.content || "No response generated.",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        sources: result.messages[result.messages.length - 1]?.sources,
+        grounded: result.grounded,
       };
 
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id === activeConvId) {
+      const finalConvId = result.conversationId ? String(result.conversationId) : currentConvId;
+      if (currentConvId !== finalConvId) {
+        setActiveConvId(finalConvId);
+      }
+
+      setConversations((prev) => {
+        const found = prev.some((c) => c.id === currentConvId || c.id === finalConvId);
+        if (!found) {
+          return [
+            {
+              id: finalConvId,
+              title: currentQuery ? (currentQuery.length > 28 ? currentQuery.slice(0, 28) + "..." : currentQuery) : "Study Chat",
+              lastActive: "Just now",
+              messages: [userMsg, tutorReply],
+            },
+            ...prev,
+          ];
+        }
+        return prev.map((c) => {
+          if (c.id === currentConvId || c.id === finalConvId) {
+            return {
+              ...c,
+              id: finalConvId,
+              messages: [...c.messages, tutorReply],
+            };
+          }
+          return c;
+        });
+      });
+
+      refetchConversations();
+    } catch (error: any) {
+      const status = error?.status;
+      const code = error?.code;
+      const rawMsg = error?.message || "An unexpected error occurred.";
+
+      let contentMsg = `⚠️ **Error**: ${rawMsg}`;
+      if (status === 401 || status === 403 || code === "UNAUTHORIZED" || code === "FORBIDDEN" || rawMsg.includes("403") || rawMsg.includes("401")) {
+        contentMsg = `⚠️ **Session Expired / Authentication Required**\n\nYour login session has expired or you are not currently signed in.\n\nPlease **[Click here to Log In](/login?redirect=/ai-tutor)** to continue your conversation.`;
+      } else if (status === 422 || code === "VALIDATION_ERROR") {
+        contentMsg = `⚠️ **Input Validation**: ${rawMsg.replace(/HTTP 422:?\s*/i, "")}`;
+      } else if (status === 400 || status === 404 || code === "MODEL_ERROR") {
+        contentMsg = `⚠️ **Model Configuration**: ${rawMsg.replace(/HTTP (400|404):?\s*/i, "")}`;
+      } else if (status === 504 || code === "TIMEOUT_ERROR") {
+        contentMsg = `⚠️ **Request Timeout**: The local AI engine took too long to complete generation. Try asking a more specific question or using a shorter context.`;
+      } else if (status === 503 || code === "SERVICE_UNAVAILABLE" || rawMsg.includes("Connection refused") || rawMsg.includes("Failed to fetch")) {
+        contentMsg = `⚠️ **Local AI Unavailable**: Could not connect to local Ollama on http://127.0.0.1:11434. Please check that Ollama is running.`;
+      } else if (status === 409) {
+        contentMsg = `⚠️ **Document Processing**: ${rawMsg}`;
+      }
+
+      const tutorReply: ChatMessage = {
+        id: Date.now() + 1,
+        role: "TUTOR",
+        content: contentMsg,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        grounded: false,
+      };
+
+      setConversations((prev) => {
+        const found = prev.some((c) => c.id === currentConvId);
+        if (!found) {
+          return [
+            {
+              id: currentConvId,
+              title: currentQuery ? (currentQuery.length > 28 ? currentQuery.slice(0, 28) + "..." : currentQuery) : "Study Chat",
+              lastActive: "Just now",
+              messages: [userMsg, tutorReply],
+            },
+            ...prev,
+          ];
+        }
+        return prev.map((c) => {
+          if (c.id === currentConvId) {
             return {
               ...c,
               messages: [...c.messages, tutorReply],
             };
           }
           return c;
-        })
-      );
+        });
+      });
+    } finally {
       setIsTyping(false);
-    }, 750);
-  };
+    }
+  }, [inputText, attachedFile, activeConvId, selectedMaterialIds, availableDocuments, selectedModel, askTutor, askTutorGrounded, uploadMaterial, refetchMaterials, refetchConversations, conversations]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -182,22 +479,50 @@ export default function TutorPage() {
     };
     setConversations((prev) => [newConv, ...prev]);
     setActiveConvId(newId);
-    setInputText("");
-    setAttachedFile(null);
   };
 
-  const deleteConversation = (id: string, e: React.MouseEvent) => {
+  const deleteConversationHandler = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setConversations((prev) => prev.filter((c) => c.id !== id));
+    const remaining = conversations.filter((c) => c.id !== id);
+    setConversations(remaining);
     if (activeConvId === id) {
-      const remaining = conversations.filter((c) => c.id !== id);
-      if (remaining.length > 0) setActiveConvId(remaining[0].id);
-      else startNewChat();
+      setActiveConvId(remaining.length > 0 ? remaining[0].id : "");
+    }
+    const cleanId = id.replace("conv-", "");
+    const numId = parseInt(cleanId, 10);
+    if (!isNaN(numId)) {
+      try {
+        await deleteConversation.mutateAsync(numId);
+        refetchConversations();
+      } catch (err) {
+        console.error("Failed to delete conversation:", err);
+      }
     }
   };
 
+  const handleClearAllConversations = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setConversations([]);
+    setActiveConvId("");
+    try {
+      await clearAllConversations.mutateAsync();
+      refetchConversations();
+    } catch (err) {
+      console.error("Failed to clear all conversations:", err);
+    }
+  };
+
+  const toggleSourceExpanded = (sourceId: string) => {
+    setExpandedSources((prev) => {
+      const next = new Set(prev);
+      if (next.has(sourceId)) next.delete(sourceId);
+      else next.add(sourceId);
+      return next;
+    });
+  };
+
   const copyToClipboard = (id: string | number, text: string) => {
-    void navigator.clipboard.writeText(text);
+    navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
@@ -207,414 +532,362 @@ export default function TutorPage() {
   );
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-canvas)", overflow: "hidden" }}>
+    <div className="flex flex-col h-screen bg-brand-primary text-brand-light overflow-hidden">
       <Navbar />
 
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
-        {/* Tutor Sidebar */}
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* SIDEBAR: Conversations & Documents */}
         <aside
-          style={{
-            width: "280px",
-            background: "rgba(9, 18, 13, 0.94)",
-            borderRight: "1px solid var(--line)",
-            display: "flex",
-            flexDirection: "column",
-            flexShrink: 0,
-            padding: "16px",
-            zIndex: 10,
-          }}
-          className="hidden md:flex"
+          className={`${
+            sidebarOpen ? "w-72" : "w-0 -ml-72"
+          } transition-all duration-200 border-r border-brand-neutral/20 bg-brand-secondary flex flex-col shrink-0 z-20 overflow-hidden`}
         >
-          <Button
-            variant="primary"
-            onClick={startNewChat}
-            style={{ width: "100%", marginBottom: "14px", minHeight: "42px" }}
-          >
-            + New Conversation
-          </Button>
+          {/* Sidebar Top: New Chat & Search */}
+          <div className="p-3 border-b border-brand-neutral/20 space-y-2">
+            <button
+              onClick={startNewChat}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md bg-brand-accent hover:bg-brand-accent text-brand-light text-xs font-medium shadow-sm transition-colors cursor-pointer"
+            >
+              <Plus size={14} /> New Conversation
+            </button>
 
-          {/* Search conversation */}
-          <div style={{ position: "relative", marginBottom: "14px" }}>
-            <Search size={14} color="var(--mist)" style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }} />
-            <input
-              type="text"
-              placeholder="Search chats..."
-              value={searchConv}
-              onChange={(e) => setSearchConv(e.target.value)}
-              className="form-control"
-              style={{ height: "36px", paddingLeft: "32px", fontSize: "12px" }}
-            />
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-2.5 text-brand-muted" />
+              <input
+                type="text"
+                placeholder="Search chats..."
+                value={searchConv}
+                onChange={(e) => setSearchConv(e.target.value)}
+                className="w-full h-8 pl-8 pr-3 bg-brand-primary border border-brand-neutral/20 rounded-md text-xs text-brand-neutral placeholder-zinc-500 focus:outline-none focus:border-brand-neutral/30"
+              />
+            </div>
           </div>
 
-          <div className="eyebrow" style={{ fontSize: "11px", color: "var(--mist)", marginBottom: "8px" }}>
-            Conversations
-          </div>
+          {/* Conversations List */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+            <div className="flex items-center justify-between px-2 py-1 text-[11px] font-medium text-brand-muted uppercase tracking-wider">
+              <span>Conversations ({filteredConversations.length})</span>
+              {filteredConversations.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllConversations}
+                  className="text-[10px] text-brand-muted hover:text-red-400 cursor-pointer transition-colors"
+                  title="Clear all conversations"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
 
-          {/* Conversation List */}
-          <nav style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px" }}>
             {filteredConversations.map((c) => {
               const isActive = c.id === activeConvId;
               return (
                 <div
                   key={c.id}
                   onClick={() => setActiveConvId(c.id)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "9px 12px",
-                    borderRadius: "8px",
-                    background: isActive ? "var(--accent-lime-dim)" : "transparent",
-                    border: isActive ? "1px solid var(--accent-lime-border)" : "1px solid transparent",
-                    color: isActive ? "var(--accent-lime)" : "var(--paper)",
-                    fontSize: "13px",
-                    cursor: "pointer",
-                    transition: "all 0.18s ease",
-                  }}
-                  className="hover:bg-white/5"
+                  className={`group flex items-center justify-between px-2.5 py-2 rounded-md text-xs transition-colors cursor-pointer ${
+                    isActive
+                      ? "bg-brand-secondary text-brand-light font-medium"
+                      : "text-brand-neutral hover:text-brand-neutral hover:bg-brand-secondary/50"
+                  }`}
                 >
-                  <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                    <span style={{ fontWeight: isActive ? 700 : 500, display: "block" }}>{c.title}</span>
-                    <span style={{ fontSize: "10px", color: "var(--mist)" }}>{c.lastActive}</span>
+                  <div className="flex items-center gap-2 truncate flex-1 min-w-0">
+                    <MessageSquare size={13} className={isActive ? "text-brand-neutral" : "text-brand-muted"} />
+                    <span className="truncate">{c.title}</span>
                   </div>
-                  {conversations.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={(e) => deleteConversation(c.id, e)}
-                      aria-label="Delete chat"
-                      style={{ background: "none", border: "none", color: "var(--mist)", cursor: "pointer", padding: "4px" }}
-                      className="hover:text-red-400"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => deleteConversationHandler(c.id, e)}
+                    aria-label="Delete chat"
+                    className="opacity-40 group-hover:opacity-100 p-1 text-brand-muted hover:text-red-400 rounded transition-all shrink-0 ml-1.5 cursor-pointer"
+                    title="Delete chat"
+                  >
+                    <Trash2 size={13} />
+                  </button>
                 </div>
               );
             })}
-          </nav>
 
-          {/* Bottom In-Development Notice (Padded to avoid Next.js badge collision) */}
-          <div
-            style={{
-              padding: "12px",
-              borderRadius: "8px",
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid var(--line)",
-              marginTop: "auto",
-              marginBottom: "36px", // bottom padding protects against dev overlay badge
-            }}
-          >
-            <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "11px", fontWeight: 700, color: "var(--gold)" }}>
-              <Info size={13} /> Grounded Tutor (Preview)
-            </span>
-            <p style={{ margin: "4px 0 0", fontSize: "11px", color: "var(--mist)", lineHeight: 1.4 }}>
-              Interactive document Q&amp;A. Full citation engine and page indexing are enabled in preview mode.
-            </p>
+            {filteredConversations.length === 0 && (
+              <div className="px-3 py-6 text-center text-xs text-brand-muted">
+                No conversations found
+              </div>
+            )}
           </div>
-        </aside>
 
-        {/* Chat Main Area */}
-        <section
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            height: "100%",
-            overflow: "hidden",
-            background: "radial-gradient(circle at 80% 5%, rgba(122, 255, 135, 0.05), transparent 28rem), var(--bg-canvas)",
-          }}
-        >
-          {/* Messages Scroll Column */}
-          <div
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "24px 20px",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            <div style={{ maxWidth: "820px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "20px" }}>
-              {messages.length === 0 ? (
-                /* Empty state with suggested starter prompts */
-                <div style={{ textAlign: "center", padding: "48px 16px" }}>
-                  <div
-                    style={{
-                      display: "grid",
-                      width: "52px",
-                      height: "52px",
-                      placeItems: "center",
-                      borderRadius: "14px",
-                      background: "var(--accent-lime-dim)",
-                      border: "1px solid var(--accent-lime-border)",
-                      color: "var(--accent-lime)",
-                      margin: "0 auto 16px",
-                    }}
-                  >
-                    <Brain size={26} />
-                  </div>
-                  <h2 style={{ fontSize: "22px", fontWeight: 700, color: "var(--paper)", margin: "0 0 8px" }}>
-                    Source-Grounded Study Tutor
-                  </h2>
-                  <p style={{ fontSize: "14px", color: "var(--mist)", maxWidth: "480px", margin: "0 auto 28px", lineHeight: 1.6 }}>
-                    Ask questions about your course materials or attach a lecture slide deck to explore concepts, definitions, and active recall summaries.
-                  </p>
+          {/* Document Grounding Selector */}
+          <div className="p-3 border-t border-brand-neutral/20 bg-brand-primary/60">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-medium text-brand-neutral uppercase tracking-wider">
+                Grounded Notes ({availableDocuments.length})
+              </span>
+              {selectedMaterialIds.length > 0 && (
+                <button
+                  onClick={() => setSelectedMaterialIds([])}
+                  className="text-[10px] text-brand-neutral hover:underline cursor-pointer"
+                >
+                  Clear ({selectedMaterialIds.length})
+                </button>
+              )}
+            </div>
 
-                  <div style={{ maxWidth: "600px", margin: "0 auto", textAlign: "left" }}>
-                    <p className="eyebrow" style={{ marginBottom: "10px" }}>
-                      Suggested Starter Inquiries
-                    </p>
-                    <div style={{ display: "grid", gap: "8px" }}>
-                      {STARTER_PROMPTS.map((prompt) => (
-                        <button
-                          key={prompt}
-                          type="button"
-                          onClick={() => handleSendMessage(prompt)}
-                          style={{
-                            padding: "12px 16px",
-                            borderRadius: "10px",
-                            background: "rgba(255, 255, 255, 0.03)",
-                            border: "1px solid var(--line)",
-                            color: "var(--paper)",
-                            fontSize: "13px",
-                            textAlign: "left",
-                            cursor: "pointer",
-                            transition: "all 0.18s ease",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                          }}
-                          className="hover:border-lime-400 hover:bg-white/5"
-                        >
-                          <span>{prompt}</span>
-                          <Send size={13} color="var(--accent-lime)" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+            <div className="max-h-36 overflow-y-auto space-y-1">
+              {availableDocuments.length === 0 ? (
+                <div className="p-3 rounded border border-dashed border-brand-neutral/20 text-center text-[11px] text-brand-muted">
+                  No completed notes yet
                 </div>
               ) : (
-                messages.map((msg) => {
-                  const isUser = msg.role === "USER";
+                availableDocuments.map((doc) => {
+                  const isSelected = selectedMaterialIds.includes(doc.id);
+                  const label = FILE_TYPE_LABELS[doc.mimeType] || "DOC";
                   return (
-                    <article
-                      key={msg.id}
-                      style={{
-                        display: "flex",
-                        gap: "12px",
-                        alignSelf: isUser ? "flex-end" : "flex-start",
-                        maxWidth: "88%",
-                      }}
+                    <label
+                      key={doc.id}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-md border text-xs cursor-pointer transition-colors ${
+                        isSelected
+                          ? "bg-brand-accent/20 border-brand-neutral/30 text-brand-light"
+                          : "bg-brand-primary/60 border-brand-neutral/20 text-brand-neutral hover:border-brand-neutral/30"
+                      }`}
                     >
-                      {!isUser && (
-                        <div
-                          style={{
-                            display: "grid",
-                            width: "34px",
-                            height: "34px",
-                            placeItems: "center",
-                            borderRadius: "8px",
-                            background: "var(--accent-lime-dim)",
-                            border: "1px solid var(--accent-lime-border)",
-                            color: "var(--accent-lime)",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Sparkles size={16} />
-                        </div>
-                      )}
-
-                      <div
-                        style={{
-                          background: isUser ? "rgba(122, 255, 135, 0.14)" : "rgba(16, 28, 20, 0.85)",
-                          border: isUser ? "1px solid var(--accent-lime-border)" : "1px solid var(--border-medium)",
-                          borderRadius: isUser ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                          padding: "16px 18px",
-                          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.2)",
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedMaterialIds((p) => [...p, doc.id]);
+                          else setSelectedMaterialIds((p) => p.filter((id) => id !== doc.id));
                         }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "14px", marginBottom: "6px" }}>
-                          <span style={{ fontSize: "11px", fontWeight: 700, color: isUser ? "var(--accent-lime)" : "var(--mint)" }}>
-                            {isUser ? "You" : "Smart Study Tutor"}
-                          </span>
-                          <span style={{ fontSize: "11px", color: "var(--mist)" }}>{msg.timestamp}</span>
-                        </div>
-
-                        {msg.attachment && (
-                          <div
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              padding: "4px 10px",
-                              borderRadius: "6px",
-                              background: "rgba(0, 0, 0, 0.35)",
-                              border: "1px solid var(--line)",
-                              fontSize: "12px",
-                              color: "var(--mint)",
-                              marginBottom: "10px",
-                            }}
-                          >
-                            <Paperclip size={13} />
-                            <span>{msg.attachment.name}</span>
-                            <span style={{ color: "var(--mist)", fontSize: "11px" }}>({msg.attachment.size})</span>
-                          </div>
-                        )}
-
-                        {/* Markdown formatting cleanly rendered without raw asterisks */}
-                        <MarkdownView content={msg.content} />
-
-                        {!isUser && (
-                          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "10px", paddingTop: "8px", borderTop: "1px solid var(--line)" }}>
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboard(msg.id, msg.content)}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "var(--mist)",
-                                fontSize: "11px",
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                cursor: "pointer",
-                              }}
-                              className="hover:text-white"
-                            >
-                              {copiedId === msg.id ? (
-                                <>
-                                  <Check size={12} color="var(--accent-lime)" /> Copied
-                                </>
-                              ) : (
-                                <>
-                                  <Copy size={12} /> Copy
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </article>
+                        className="rounded border-brand-neutral/30 text-brand-neutral focus:ring-0 cursor-pointer"
+                      />
+                      <span className="text-[10px] px-1 py-0.5 rounded bg-brand-secondary text-brand-neutral font-mono">
+                        {label}
+                      </span>
+                      <span className="truncate flex-1 text-[11px]">{doc.title}</span>
+                    </label>
                   );
                 })
               )}
+            </div>
+          </div>
+        </aside>
 
-              {isTyping && (
-                <div style={{ display: "flex", gap: "12px", alignSelf: "flex-start" }}>
-                  <div
-                    style={{
-                      display: "grid",
-                      width: "34px",
-                      height: "34px",
-                      placeItems: "center",
-                      borderRadius: "8px",
-                      background: "var(--accent-lime-dim)",
-                      color: "var(--accent-lime)",
-                    }}
-                  >
-                    <Sparkles size={16} />
-                  </div>
-                  <div
-                    style={{
-                      background: "rgba(16, 28, 20, 0.85)",
-                      border: "1px solid var(--line)",
-                      borderRadius: "16px 16px 16px 4px",
-                      padding: "12px 18px",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                    }}
-                  >
-                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--accent-lime)", animation: "glow-pulse 1s infinite" }} />
-                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--mint)", animation: "glow-pulse 1s infinite 0.2s" }} />
-                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "var(--accent-lime)", animation: "glow-pulse 1s infinite 0.4s" }} />
-                    <span style={{ fontSize: "12px", color: "var(--mist)", marginLeft: "6px" }}>Analyzing source concepts...</span>
-                  </div>
-                </div>
-              )}
+        {/* MAIN CHAT AREA */}
+        <main className="flex-1 flex flex-col h-full bg-brand-primary overflow-hidden">
+          {/* Chat Header Bar */}
+          <div className="h-11 px-4 border-b border-brand-neutral/20 flex items-center justify-between bg-brand-secondary/50 shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSidebarOpen((o) => !o)}
+                className="p-1 rounded text-brand-neutral hover:text-brand-neutral hover:bg-brand-secondary transition-colors cursor-pointer"
+                title={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+              >
+                {sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}
+              </button>
+              <h2 className="text-xs font-medium text-brand-neutral truncate max-w-xs">
+                {activeConv?.title || "AI Tutor"}
+              </h2>
+            </div>
 
-              <div ref={messagesEndRef} />
+            <div className="flex items-center gap-3">
+              {/* Grounded Status Pill */}
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] border border-brand-neutral/20 bg-brand-primary">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    selectedMaterialIds.length > 0 || availableDocuments.length > 0 ? "bg-emerald-400" : "bg-brand-elevated"
+                  }`}
+                />
+                <span className="text-brand-neutral">
+                  {selectedMaterialIds.length > 0
+                    ? `Grounded on ${selectedMaterialIds.length} doc${selectedMaterialIds.length > 1 ? "s" : ""}`
+                    : availableDocuments.length > 0
+                    ? `Grounded on ${availableDocuments.length} note${availableDocuments.length > 1 ? "s" : ""}`
+                    : "General Assistant"}
+                </span>
+              </div>
+
+              {/* Model Pill */}
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-brand-muted">
+                <span className={`w-1.5 h-1.5 rounded-full ${isOllamaHealthy ? "bg-emerald-400" : "bg-red-400"}`} />
+                <span>smartstudy-tutor (Local AI)</span>
+              </div>
             </div>
           </div>
 
-          {/* Sticky Composer Area (No double focus ring, Enter to submit, Shift+Enter for newline) */}
-          <div
-            style={{
-              padding: "16px 20px 24px",
-              background: "rgba(6, 13, 9, 0.95)",
-              borderTop: "1px solid var(--line)",
-              backdropFilter: "blur(20px)",
-              flexShrink: 0,
-            }}
-          >
-            <div style={{ maxWidth: "820px", margin: "0 auto" }}>
-              {/* Attached file chip */}
-              {attachedFile && (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      padding: "4px 12px",
-                      borderRadius: "999px",
-                      background: "var(--accent-lime-dim)",
-                      border: "1px solid var(--accent-lime-border)",
-                      color: "var(--accent-lime)",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                    }}
-                  >
-                    <Paperclip size={13} />
-                    <span>{attachedFile.name} ({attachedFile.size})</span>
+          {/* Messages Scroll Area */}
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
+            {loadingConvId === activeConvId ? (
+              <div className="max-w-lg mx-auto py-16 text-center space-y-3">
+                <Loader2 size={24} className="animate-spin text-brand-neutral mx-auto" />
+                <p className="text-xs text-brand-neutral">Loading conversation history...</p>
+              </div>
+            ) : (messages.length === 0 && !isTyping) ? (
+              <div className="max-w-lg mx-auto py-12 text-center">
+                <div className="grid w-10 h-10 place-items-center rounded-xl bg-brand-accent/20 border border-brand-neutral/20 text-brand-neutral mx-auto mb-3">
+                  <Sparkles size={20} />
+                </div>
+                <h3 className="text-base font-semibold text-brand-light mb-1">
+                  How can I help with your studies today?
+                </h3>
+                <p className="text-xs text-brand-neutral leading-relaxed mb-6">
+                  Select documents from the sidebar to ground answers in verified course materials.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-left">
+                  {STARTER_PROMPTS.map((prompt) => (
                     <button
-                      type="button"
-                      onClick={() => {
-                        setAttachedFile(null);
-                        if (fileInputRef.current) fileInputRef.current.value = "";
-                      }}
-                      style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "0 2px" }}
-                      aria-label="Remove attached file"
+                      key={prompt}
+                      onClick={() => handleSendMessage(prompt)}
+                      className="p-3 rounded-lg border border-brand-neutral/20 bg-brand-secondary hover:border-brand-neutral/30 text-xs text-brand-neutral hover:text-brand-light transition-colors cursor-pointer"
                     >
-                      <X size={13} />
+                      &ldquo;{prompt}&rdquo;
                     </button>
-                  </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              messages.map((msg) => {
+                const isUser = msg.role === "USER";
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${isUser ? "items-end" : "items-start"} w-full`}
+                  >
+                    <div className="flex items-center gap-2 mb-1 text-[11px] text-brand-muted px-1">
+                      <span className="font-medium text-brand-neutral">
+                        {isUser ? "You" : msg.grounded ? "Smart Study AI (Grounded)" : "Smart Study AI"}
+                      </span>
+                      <span>·</span>
+                      <span>{msg.timestamp}</span>
+                    </div>
+
+                    <div
+                      className={`rounded-xl px-4 py-3 text-sm leading-relaxed max-w-[94%] sm:max-w-[88%] ${
+                        isUser
+                          ? "bg-brand-accent text-brand-light"
+                          : "bg-brand-secondary border border-brand-neutral/20 text-brand-light shadow-sm"
+                      }`}
+                    >
+                      {msg.attachment && (
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-brand-primary/20 border border-white/10 text-xs mb-2">
+                          <Paperclip size={12} />
+                          <span>{msg.attachment.name}</span>
+                          <span className="opacity-70 text-[10px]">({msg.attachment.size})</span>
+                        </div>
+                      )}
+
+                      <MarkdownView content={msg.content} />
+
+                      {/* Source Citations */}
+                      {msg.sources && msg.sources.length > 0 && !isUser && (
+                        <div className="mt-3 pt-3 border-t border-brand-neutral/20">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-brand-neutral mb-2">
+                            <Shield size={13} />
+                            <span>Verified Sources ({msg.sources.length})</span>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            {msg.sources.map((source, idx) => {
+                              const sId = `${msg.id}-${idx}`;
+                              const isExp = expandedSources.has(sId);
+                              const meta = source.metadata;
+                              const citation =
+                                source.citation ||
+                                (meta
+                                  ? `[${meta.filename}${meta.page ? `, page ${meta.page}` : ""}]`
+                                  : `Source ${idx + 1}`);
+
+                              return (
+                                <div
+                                  key={sId}
+                                  className="rounded-lg border border-brand-neutral/20 bg-brand-primary/60 overflow-hidden text-xs"
+                                >
+                                  <button
+                                    onClick={() => toggleSourceExpanded(sId)}
+                                    className="w-full flex items-center justify-between p-2 text-left hover:bg-brand-secondary/40 transition-colors cursor-pointer"
+                                  >
+                                    <span className="font-mono text-brand-neutral text-[11px] truncate">
+                                      {citation}
+                                    </span>
+                                    {isExp ? <ChevronUp size={12} className="text-brand-muted shrink-0" /> : <ChevronDown size={12} className="text-brand-muted shrink-0" />}
+                                  </button>
+                                  {isExp && (
+                                    <div className="p-2.5 border-t border-brand-neutral/20 bg-brand-primary/30 text-brand-neutral text-xs leading-relaxed">
+                                      <p className="italic">{source.text}</p>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {!isUser && (
+                        <div className="flex justify-end mt-2 pt-2 border-t border-brand-neutral/20">
+                          <button
+                            onClick={() => copyToClipboard(msg.id, msg.content)}
+                            className="flex items-center gap-1 text-[11px] text-brand-muted hover:text-brand-neutral transition-colors cursor-pointer"
+                          >
+                            {copiedId === msg.id ? (
+                              <>
+                                <Check size={11} className="text-emerald-400" /> Copied
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={11} /> Copy
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+
+            {isTyping && (
+              <div className="flex items-center gap-2 w-full text-xs text-brand-muted p-2">
+                <Loader2 size={13} className="animate-spin text-brand-neutral" />
+                <span>Generating response with smartstudy-tutor...</span>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Bottom Chat Input */}
+          <div className="p-3 sm:p-4 border-t border-brand-neutral/20 bg-brand-secondary/80 backdrop-blur-sm shrink-0">
+            <div className="w-full">
+              {attachedFile && (
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-brand-secondary border border-brand-neutral/30 text-xs text-brand-neutral mb-2">
+                  <Paperclip size={13} className="text-brand-neutral" />
+                  <span className="truncate max-w-xs">{attachedFile.name}</span>
+                  <span className="text-brand-muted text-[10px]">({attachedFile.size})</span>
+                  <button
+                    onClick={() => setAttachedFile(null)}
+                    className="p-0.5 hover:text-red-400 cursor-pointer"
+                  >
+                    <X size={12} />
+                  </button>
                 </div>
               )}
 
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  handleSendMessage();
-                }}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-end",
-                  gap: "10px",
-                  background: "rgba(12, 24, 17, 0.9)",
-                  border: "1px solid var(--border-medium)",
-                  borderRadius: "14px",
-                  padding: "8px 12px",
-                }}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  accept=".pdf,.docx,.txt,.md"
-                  style={{ display: "none" }}
-                />
-
+              <div className="relative flex items-end gap-2 rounded-xl border border-brand-neutral/20 bg-brand-primary/90 p-2 focus-within:border-brand-neutral/30 focus-within:ring-1 focus-within:ring-brand-neutral">
                 <button
                   type="button"
-                  className="btn-icon"
                   onClick={() => fileInputRef.current?.click()}
-                  title="Attach study note (PDF, DOCX, TXT)"
-                  aria-label="Attach note file"
-                  style={{ width: "36px", height: "36px", flexShrink: 0 }}
+                  className="p-2 rounded-lg text-brand-neutral hover:text-brand-neutral hover:bg-brand-secondary transition-colors cursor-pointer shrink-0"
+                  title="Attach study document"
                 >
                   <Paperclip size={16} />
                 </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                  accept=".pdf,.docx,.xlsx,.xlsm,.pptx,.txt,.csv,.md"
+                />
 
                 <textarea
                   ref={textareaRef}
@@ -622,41 +895,34 @@ export default function TutorPage() {
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask a question or request a summary... (Enter to send, Shift+Enter for newline)"
-                  style={{
-                    flex: 1,
-                    background: "transparent",
-                    border: "none",
-                    outline: "none",
-                    color: "var(--paper)",
-                    fontSize: "14px",
-                    resize: "none",
-                    maxHeight: "120px",
-                    padding: "6px 0",
-                    lineHeight: 1.5,
-                  }}
+                  placeholder={
+                    selectedMaterialIds.length > 0
+                      ? "Ask a question about the selected documents..."
+                      : availableDocuments.length > 0
+                      ? "Ask about your notes (e.g., scholarship details, deadlines, eligibility)..."
+                      : "Ask anything, or attach a document for grounded Q&A..."
+                  }
+                  className="flex-1 max-h-32 bg-transparent text-sm text-brand-light placeholder-zinc-500 resize-none border-0 focus:outline-none focus:ring-0 py-1.5"
                 />
 
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="sm"
-                  disabled={!inputText.trim() && !attachedFile}
-                  loading={isTyping}
-                  style={{ minHeight: "36px", padding: "0 14px", flexShrink: 0 }}
+                <button
+                  type="button"
+                  onClick={() => handleSendMessage()}
+                  disabled={isTyping || (!inputText.trim() && !attachedFile)}
+                  className="p-2 rounded-lg bg-brand-accent hover:bg-brand-accent disabled:opacity-40 disabled:hover:bg-brand-accent text-brand-light transition-colors cursor-pointer shrink-0"
+                  aria-label="Send message"
                 >
-                  <Send size={14} />
-                  <span className="hidden sm:inline">Send</span>
-                </Button>
-              </form>
+                  <Send size={15} />
+                </button>
+              </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "var(--mist)", marginTop: "6px", paddingInline: "4px" }}>
-                <span>Answers cite concepts directly from your notes</span>
-                <span>Enter to submit &bull; Shift+Enter for newline</span>
+              <div className="flex items-center justify-between text-[11px] text-brand-muted mt-1.5 px-1">
+                <span>Enter to send · Shift+Enter for newline</span>
+                <span>Ollama local RAG active</span>
               </div>
             </div>
           </div>
-        </section>
+        </main>
       </div>
     </div>
   );

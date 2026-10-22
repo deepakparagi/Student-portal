@@ -24,7 +24,7 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/v1/materials")
 public class MaterialController {
-    private static final Set<String> ALLOWED = Set.of("pdf", "txt", "docx");
+    private static final Set<String> ALLOWED = Set.of("pdf", "txt", "docx", "md", "xlsx", "xlsm", "csv", "pptx");
     private static final int MAX_UPLOAD_MB = 20;
     private static final int MAX_DOCX_ENTRIES = 1000;
     private static final long MAX_DOCX_UNCOMPRESSED_MB = 50;
@@ -150,7 +150,7 @@ public class MaterialController {
         String original = StringUtils.cleanPath(Objects.requireNonNullElse(f.getOriginalFilename(), "upload"));
         String ext = original.contains(".") ? original.substring(original.lastIndexOf('.') + 1).toLowerCase() : "";
         if (!ALLOWED.contains(ext) || !hasExpectedSignature(f, ext)) {
-            return ResponseEntity.status(415).body(Map.of("error", "The file type does not match a supported PDF, TXT or DOCX document"));
+            return ResponseEntity.status(415).body(Map.of("error", "The file type does not match a supported PDF, TXT, DOCX, XLSX, PPTX, CSV or Markdown document"));
         }
         if (f.isEmpty() || f.getSize() > (long) maxUploadMb * 1024 * 1024) {
             return ResponseEntity.badRequest().body(Map.of("error", "Choose a non-empty file smaller than " + maxUploadMb + " MB"));
@@ -179,16 +179,15 @@ public class MaterialController {
         if (ext.equals("pdf")) {
             return prefix.length >= 5 && prefix[0] == '%' && prefix[1] == 'P' && prefix[2] == 'D' && prefix[3] == 'F' && prefix[4] == '-';
         }
-        if (ext.equals("docx")) {
+        if (ext.equals("docx") || ext.equals("xlsx") || ext.equals("xlsm") || ext.equals("pptx")) {
             // Check PK header
             if (!(prefix.length >= 4 && prefix[0] == 'P' && prefix[1] == 'K' && prefix[2] == 3 && prefix[3] == 4)) {
                 return false;
             }
-            // Additional OOXML validation: check for [Content_Types].xml and word/document.xml
             try (var zipIn = new ZipInputStream(file.getInputStream())) {
                 int entryCount = 0;
                 boolean hasContentTypes = false;
-                boolean hasDocumentXml = false;
+                boolean hasPayload = false;
                 long uncompressedSize = 0;
                 ZipEntry entry;
                 while ((entry = zipIn.getNextEntry()) != null) {
@@ -198,12 +197,14 @@ public class MaterialController {
                     if (uncompressedSize > MAX_DOCX_UNCOMPRESSED_MB * 1024 * 1024) return false;
                     String name = entry.getName();
                     if ("[Content_Types].xml".equals(name)) hasContentTypes = true;
-                    if ("word/document.xml".equals(name)) hasDocumentXml = true;
+                    if (ext.equals("docx") && "word/document.xml".equals(name)) hasPayload = true;
+                    if ((ext.equals("xlsx") || ext.equals("xlsm")) && (name.startsWith("xl/") || "xl/workbook.xml".equals(name))) hasPayload = true;
+                    if (ext.equals("pptx") && (name.startsWith("ppt/") || "ppt/presentation.xml".equals(name))) hasPayload = true;
                 }
-                return hasContentTypes && hasDocumentXml;
+                return hasContentTypes && hasPayload;
             }
         }
-        // TXT: validate UTF-8
+        // TXT, MD, CSV: validate UTF-8
         try {
             var decoder = java.nio.charset.StandardCharsets.UTF_8.newDecoder()
                     .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT);
@@ -251,6 +252,9 @@ public class MaterialController {
 
         // Delete chunks (cascade not set on material_chunks, so explicit delete)
         chunkRepo.deleteByMaterialId(id);
+
+        // Delete ChromaDB vector index
+        processor.deleteVectorIndex(id);
 
         // Delete material (cascades to quizzes, flashcards via FK)
         repo.delete(m);

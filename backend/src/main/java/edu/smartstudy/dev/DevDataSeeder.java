@@ -4,6 +4,8 @@ import edu.smartstudy.material.Material;
 import edu.smartstudy.material.MaterialRepository;
 import edu.smartstudy.user.User;
 import edu.smartstudy.user.UserRepository;
+import edu.smartstudy.parent.ParentStudentLink;
+import edu.smartstudy.parent.ParentStudentLinkRepository;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -20,11 +22,13 @@ public class DevDataSeeder {
 
     private final UserRepository users;
     private final MaterialRepository materials;
+    private final ParentStudentLinkRepository links;
     private final PasswordEncoder passwords;
 
-    public DevDataSeeder(UserRepository users, MaterialRepository materials, PasswordEncoder passwords) {
+    public DevDataSeeder(UserRepository users, MaterialRepository materials, ParentStudentLinkRepository links, PasswordEncoder passwords) {
         this.users = users;
         this.materials = materials;
+        this.links = links;
         this.passwords = passwords;
     }
 
@@ -36,27 +40,59 @@ public class DevDataSeeder {
             return;
         }
 
-        // Create demo student
+        // 1. Primary Test Accounts (from README & e2e tests)
+        User testStudent = new User("Student User", "student@test.com", passwords.encode("Password123!"), "STUDENT");
+        testStudent.setTimezone("Asia/Kolkata");
+        testStudent.setEmailVerified(true);
+        users.save(testStudent);
+
+        User testParent = new User("Parent User", "parent@test.com", passwords.encode("Password123!"), "PARENT");
+        testParent.setTimezone("Asia/Kolkata");
+        testParent.setEmailVerified(true);
+        users.save(testParent);
+
+        User testAdmin = new User("Admin User", "admin@test.com", passwords.encode("Password123!"), "ADMIN");
+        testAdmin.setTimezone("Asia/Kolkata");
+        testAdmin.setEmailVerified(true);
+        users.save(testAdmin);
+
+        // Link testParent to testStudent
+        ParentStudentLink testLink = new ParentStudentLink(testParent.getId(), testStudent.getId());
+        testLink.accept();
+        links.save(testLink);
+
+        // 2. Alternative Demo Accounts (Alex, Jordan, Admin)
         User student = new User("Alex Morgan", "alex@example.test", passwords.encode("password123"), "STUDENT");
         student.setTimezone("Asia/Kolkata");
         student.setEmailVerified(true);
         users.save(student);
 
-        // Create demo parent
         User parent = new User("Jordan Morgan", "jordan@example.test", passwords.encode("password123"), "PARENT");
         parent.setTimezone("Asia/Kolkata");
         parent.setEmailVerified(true);
         users.save(parent);
 
-        // Create admin
-        User admin = new User("Admin User", "admin@example.test", passwords.encode("admin123"), "ADMIN");
+        User admin = new User("Admin Alternative", "admin@example.test", passwords.encode("admin123"), "ADMIN");
         admin.setTimezone("Asia/Kolkata");
         admin.setEmailVerified(true);
         users.save(admin);
 
-        // Create sample materials for student
-        Material mat1 = new Material(student.getId(), "Cell Biology — Unit 3", "cell-biology-unit-3.pdf",
-                "sample-key-1", "application/pdf", 102400);
+        // Link Jordan to Alex
+        ParentStudentLink demoLink = new ParentStudentLink(parent.getId(), student.getId());
+        demoLink.accept();
+        links.save(demoLink);
+
+        // Create sample materials for student@test.com
+        seedMaterialsForUser(testStudent.getId(), "t1");
+        // Create sample materials for alex@example.test
+        seedMaterialsForUser(student.getId(), "d1");
+
+        System.out.println("✓ Dev seed data created: All 6 accounts (primary & alternative) + approved parent links + materials");
+    }
+
+    private void seedMaterialsForUser(Long userId, String prefix) {
+        Material mat1 = new Material(userId, "Cell Biology — Unit 3", "cell-biology-unit-3.pdf",
+                "sample-key-" + prefix + "-1", "application/pdf", 102400);
         mat1.processing();
         mat1.complete(
                 "Cells use specialized structures to keep internal conditions stable. The cell membrane controls what enters and leaves, while mitochondria release usable energy through cellular respiration.",
@@ -66,8 +102,8 @@ public class DevDataSeeder {
         );
         materials.save(mat1);
 
-        Material mat2 = new Material(student.getId(), "Algebra — Functions & Graphs", "algebra-functions.docx",
-                "sample-key-2", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 51200);
+        Material mat2 = new Material(userId, "Algebra — Functions & Graphs", "algebra-functions.docx",
+                "sample-key-" + prefix + "-2", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", 51200);
         mat2.processing();
         mat2.complete(
                 "A function maps every input to exactly one output. The slope of a linear graph describes its rate of change, and the y-intercept gives the output when x is zero.",
@@ -77,8 +113,8 @@ public class DevDataSeeder {
         );
         materials.save(mat2);
 
-        Material mat3 = new Material(student.getId(), "World History — The Silk Roads", "silk-roads-notes.txt",
-                "sample-key-3", "text/plain", 25600);
+        Material mat3 = new Material(userId, "World History — The Silk Roads", "silk-roads-notes.txt",
+                "sample-key-" + prefix + "-3", "text/plain", 25600);
         mat3.processing();
         mat3.complete(
                 "The Silk Roads connected communities across Asia, Africa, and Europe. Merchants moved goods along the network, while travelers also carried technologies, ideas, and religious traditions.",
@@ -87,7 +123,5 @@ public class DevDataSeeder {
                 "[{\"keyword\":\"caravans\",\"count\":7},{\"keyword\":\"Eurasia\",\"count\":5},{\"keyword\":\"exchange\",\"count\":9}]"
         );
         materials.save(mat3);
-
-        System.out.println("✓ Dev seed data created: 1 student, 1 parent, 1 admin, 3 materials");
     }
 }

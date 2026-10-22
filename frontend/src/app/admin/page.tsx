@@ -26,6 +26,7 @@ import {
   History,
   HardDrive,
   Check,
+  AlertCircle,
 } from "lucide-react";
 import { Navbar } from "../navbar";
 import { PageHeader } from "@/components/ui/page-header";
@@ -255,7 +256,7 @@ export default function AdminPage() {
       setUsers((curr) => curr.map((u) => (u.id === user.id ? { ...u, role: result.role } : u)));
       const msg = `Updated ${user.name}'s role to ${newRole}.`;
       setNotice(result.notice || msg);
-      // Append to audit log
+
       setAuditLog((prev) => [
         {
           id: String(Date.now()),
@@ -287,7 +288,7 @@ export default function AdminPage() {
       if (!response.ok) throw new Error(result.error || "Could not toggle status.");
       setUsers((curr) => curr.map((u) => (u.id === user.id ? { ...u, enabled: result.enabled } : u)));
       setNotice(result.message);
-      // Append to audit log
+
       setAuditLog((prev) => [
         {
           id: String(Date.now()),
@@ -382,52 +383,43 @@ export default function AdminPage() {
   }
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col bg-brand-primary text-brand-neutral">
       <Navbar />
-      <main className="app-container" style={{ paddingBottom: "100px", paddingTop: "24px" }}>
+
+      <main className="app-container page-wrapper flex-1 py-8">
         <PageHeader
           eyebrow="Platform Governance & Telemetry"
+          eyebrowIcon={<Server size={13} className="text-brand-neutral" />}
           title="Admin Operations"
-          description="Unified control plane for user accounts, document ingestion queues, microservice diagnostics, and live academic throughput."
+          description="Unified control plane for accounts, document ingestion queues, microservice diagnostics, and throughput."
           actions={
             <Button
               variant="secondary"
               size="sm"
               onClick={() => void handleRefresh()}
               loading={refreshing}
-              icon={<RefreshCw size={14} />}
+              icon={<RefreshCw size={13} />}
+              className="text-xs"
             >
-              Refresh Telemetry
+              Refresh
             </Button>
           }
         />
 
         {error && (
-          <div
-            style={{
-              padding: "18px 22px",
-              borderRadius: "16px",
-              border: "1px solid rgba(255, 107, 107, 0.4)",
-              background: "rgba(255, 107, 107, 0.1)",
-              marginBottom: "24px",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "14px",
-            }}
-          >
-            <ShieldAlert size={22} color="var(--danger)" style={{ flexShrink: 0, marginTop: "2px" }} />
-            <div>
-              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--paper)", margin: "0 0 6px" }}>
-                Administrator Access Required
-              </h3>
-              <p style={{ fontSize: "13px", color: "var(--mist)", margin: "0 0 14px", lineHeight: 1.5 }}>
+          <div className="p-4 rounded-xl bg-rose-950/30 border border-rose-500/30 mb-6 flex items-start gap-3">
+            <ShieldAlert size={18} className="text-rose-400 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-xs font-semibold text-brand-light">Administrator Access Required</h3>
+              <p className="text-xs text-brand-neutral mt-1 mb-3">
                 {error} Please authenticate with an Administrator account (e.g. <code>admin@test.com</code> / <code>Password123!</code>).
               </p>
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => void handleSwitchToAdmin()}
-                icon={<ShieldCheck size={14} />}
+                icon={<ShieldCheck size={13} />}
+                className="text-xs py-1 px-3"
               >
                 Sign In as Admin (admin@test.com)
               </Button>
@@ -436,43 +428,26 @@ export default function AdminPage() {
         )}
 
         {notice && (
-          <div
-            role="status"
-            style={{
-              padding: "14px 18px",
-              borderRadius: "12px",
-              background: "rgba(196, 255, 106, 0.08)",
-              border: "1px solid rgba(196, 255, 106, 0.25)",
-              color: "var(--accent-lime)",
-              fontSize: "13px",
-              marginBottom: "24px",
-            }}
-          >
-            {notice}
+          <div role="status" className="flex items-center gap-2.5 px-4 py-3 rounded-lg bg-emerald-950/40 border border-emerald-500/20 text-emerald-300 text-xs font-medium mb-6">
+            <CheckCircle2 size={15} className="shrink-0 text-emerald-400" />
+            <span>{notice}</span>
           </div>
         )}
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: "64px 0", color: "var(--mist)" }}>
-            <RefreshCw size={28} className="animate-spin" style={{ margin: "0 auto 12px" }} />
+          <div className="text-center py-16 text-brand-muted text-xs">
+            <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-brand-neutral" />
             <p>Connecting to system metrics and telemetry streams...</p>
           </div>
         ) : system ? (
-          <div>
+          <div className="space-y-6">
             {/* Primary KPI Row */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                gap: "16px",
-                marginBottom: "28px",
-              }}
-            >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               <StatCard
                 label="Registered Accounts"
                 value={system.users}
                 icon={Users}
-                iconColor="var(--mint)"
+                iconColor="#7692FF"
                 subtext={`${system.students} Students • ${system.parents} Parents • ${system.admins} Admins`}
               />
 
@@ -481,7 +456,7 @@ export default function AdminPage() {
                 value={system.totalStudyHours}
                 unit="hrs"
                 icon={Clock}
-                iconColor="var(--accent-lime)"
+                iconColor="#10b981"
                 subtext={`${system.completedSessions} sessions logged platform-wide`}
               />
 
@@ -490,7 +465,7 @@ export default function AdminPage() {
                 value={system.totalMaterials}
                 unit="docs"
                 icon={FileText}
-                iconColor="var(--info)"
+                iconColor="#ABD2FA"
                 subtext={`${system.documentProcessing["COMPLETED"] ?? 0} Completed • ${system.documentProcessing["FAILED"] ?? 0} Failed`}
               />
 
@@ -498,144 +473,71 @@ export default function AdminPage() {
                 label="Quiz Accuracy Avg"
                 value={`${system.avgQuizAccuracyPercent}%`}
                 icon={Award}
-                iconColor="#f6c445"
+                iconColor="#f59e0b"
                 subtext={`${system.quizAttempts} attempts evaluated platform-wide`}
               />
             </div>
 
-            {/* Diagnostic Telemetry Status Cards (Replacing tiny text strip) */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-                gap: "14px",
-                marginBottom: "28px",
-              }}
-            >
+            {/* Diagnostic Telemetry Status Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* JVM Memory */}
-              <div
-                style={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "14px",
-                  padding: "16px 18px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                <Cpu size={20} color="var(--accent-lime)" />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--mist)", fontWeight: 700 }}>
-                    JVM Heap Memory
-                  </span>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--paper)" }}>
-                    {system.serverTelemetry.jvmUsedMemoryMB} MB / {system.serverTelemetry.jvmMaxMemoryMB} MB
+              <div className="p-3.5 rounded-xl bg-brand-secondary border border-brand-neutral/20 flex items-center gap-3">
+                <Cpu size={18} className="text-brand-neutral shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted block">JVM Heap</span>
+                  <div className="text-xs font-semibold text-brand-neutral mt-0.5">
+                    {system.serverTelemetry.jvmUsedMemoryMB}MB / {system.serverTelemetry.jvmMaxMemoryMB}MB
                   </div>
-                  <div style={{ marginTop: "6px", width: "100%", height: "4px", background: "rgba(255,255,255,0.08)", borderRadius: "2px", overflow: "hidden" }}>
+                  <div className="mt-1.5 w-full h-1 bg-brand-raised rounded-full overflow-hidden">
                     <div
-                      style={{
-                        width: `${Math.min(100, system.serverTelemetry.memoryUsagePercent)}%`,
-                        height: "100%",
-                        background: "var(--accent-lime)",
-                      }}
+                      className="h-full bg-brand-accent rounded-full"
+                      style={{ width: `${Math.min(100, system.serverTelemetry.memoryUsagePercent)}%` }}
                     />
                   </div>
                 </div>
               </div>
 
               {/* ML Engine */}
-              <div
-                style={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "14px",
-                  padding: "16px 18px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                <Activity size={20} color="var(--mint)" />
+              <div className="p-3.5 rounded-xl bg-brand-secondary border border-brand-neutral/20 flex items-center gap-3">
+                <Activity size={18} className="text-emerald-400 shrink-0" />
                 <div>
-                  <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--mist)", fontWeight: 700 }}>
-                    FastAPI ML Service
-                  </span>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "14px", fontWeight: 700, color: system.serverTelemetry.mlEngineStatus === "ONLINE" ? "var(--accent-lime)" : "var(--danger)" }}>
+                  <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted block">FastAPI ML</span>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-neutral mt-0.5">
                     <span
-                      style={{
-                        width: "8px",
-                        height: "8px",
-                        borderRadius: "50%",
-                        background: system.serverTelemetry.mlEngineStatus === "ONLINE" ? "var(--accent-lime)" : "var(--danger)",
-                        boxShadow: system.serverTelemetry.mlEngineStatus === "ONLINE" ? "0 0 8px var(--accent-lime)" : "none",
-                      }}
+                      className={`w-2 h-2 rounded-full ${
+                        system.serverTelemetry.mlEngineStatus === "ONLINE" ? "bg-emerald-400" : "bg-rose-400"
+                      }`}
                     />
-                    {system.serverTelemetry.mlEngineStatus} (Port 8000)
+                    <span>{system.serverTelemetry.mlEngineStatus} (8000)</span>
                   </div>
                 </div>
               </div>
 
               {/* Runtime Environment */}
-              <div
-                style={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "14px",
-                  padding: "16px 18px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                <Server size={20} color="var(--info)" />
+              <div className="p-3.5 rounded-xl bg-brand-secondary border border-brand-neutral/20 flex items-center gap-3">
+                <Server size={18} className="text-brand-neutral shrink-0" />
                 <div>
-                  <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--mist)", fontWeight: 700 }}>
-                    Host Runtime
-                  </span>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--paper)" }}>
+                  <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted block">Host Runtime</span>
+                  <div className="text-xs font-semibold text-brand-neutral mt-0.5">
                     JDK {system.serverTelemetry.javaVersion} • {system.serverTelemetry.availableProcessors} Cores
                   </div>
                 </div>
               </div>
 
               {/* Architecture */}
-              <div
-                style={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "14px",
-                  padding: "16px 18px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                <HardDrive size={20} color="#f6c445" />
+              <div className="p-3.5 rounded-xl bg-brand-secondary border border-brand-neutral/20 flex items-center gap-3">
+                <HardDrive size={18} className="text-amber-400 shrink-0" />
                 <div>
-                  <span style={{ fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--mist)", fontWeight: 700 }}>
-                    Database Architecture
-                  </span>
-                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--paper)" }}>
-                    MySQL 8.0 (Port 3307)
+                  <span className="text-[10px] uppercase font-mono tracking-wider text-brand-muted block">Database</span>
+                  <div className="text-xs font-semibold text-brand-neutral mt-0.5">
+                    MySQL (Port 3307)
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Sub-Navigation Tabs with Lucide Icons (Replacing emoji icons) */}
-            <div
-              role="tablist"
-              aria-label="Admin tabs"
-              style={{
-                display: "flex",
-                borderBottom: "1px solid var(--border-subtle)",
-                gap: "12px",
-                marginBottom: "24px",
-                overflowX: "auto",
-                paddingBottom: "2px",
-              }}
-            >
+            {/* Sub-Navigation Tabs */}
+            <div role="tablist" className="flex border-b border-brand-neutral/20 gap-2 overflow-x-auto pb-0.5">
               {[
                 { key: "users", label: `User Directory (${users.length})`, icon: Users },
                 { key: "documents", label: `Document Pipeline (${documents.length})`, icon: FileText },
@@ -651,54 +553,26 @@ export default function AdminPage() {
                     role="tab"
                     aria-selected={active}
                     onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                    style={{
-                      minHeight: "44px",
-                      padding: "10px 14px",
-                      background: "none",
-                      border: "none",
-                      borderBottom: active ? "2px solid var(--accent-lime)" : "2px solid transparent",
-                      color: active ? "var(--accent-lime)" : "var(--mist)",
-                      fontWeight: active ? 600 : 500,
-                      fontSize: "13px",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      whiteSpace: "nowrap",
-                      transition: "color 0.15s ease",
-                    }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 whitespace-nowrap transition-colors ${
+                      active
+                        ? "border-brand-neutral/40 text-brand-neutral"
+                        : "border-transparent text-brand-muted hover:text-brand-neutral"
+                    }`}
                   >
-                    <Icon size={15} />
+                    <Icon size={13} />
                     {tab.label}
                   </button>
                 );
               })}
             </div>
 
-            {/* TAB 1: User Management with Sorting, Pagination, and Safe Confirmation */}
+            {/* TAB 1: User Management */}
             {activeTab === "users" && (
-              <div>
+              <div className="space-y-3">
                 {/* Search & Filter Bar */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    marginBottom: "16px",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                  }}
-                >
-                  <div style={{ position: "relative", flex: "1 1 280px" }}>
-                    <Search
-                      size={15}
-                      style={{
-                        position: "absolute",
-                        left: "14px",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        color: "var(--mist)",
-                      }}
-                    />
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                  <div className="relative flex-1 max-w-sm">
+                    <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-muted" />
                     <input
                       type="text"
                       value={searchQuery}
@@ -707,21 +581,12 @@ export default function AdminPage() {
                         setPage(1);
                       }}
                       placeholder="Search accounts by name or email..."
-                      style={{
-                        width: "100%",
-                        height: "42px",
-                        padding: "0 14px 0 38px",
-                        borderRadius: "10px",
-                        background: "rgba(0,0,0,0.35)",
-                        border: "1px solid var(--border-subtle)",
-                        color: "var(--paper)",
-                        fontSize: "13px",
-                      }}
+                      className="w-full bg-brand-raised border border-brand-neutral/25 rounded-lg pl-8 pr-3 py-1.5 text-xs text-brand-light placeholder:text-brand-muted focus:outline-none focus:border-brand-neutral/40"
                     />
                   </div>
 
-                  <label style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ fontSize: "12px", color: "var(--mist)" }}>Role:</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-brand-muted">Role:</span>
                     <select
                       value={roleFilter}
                       aria-label="Filter user accounts by role"
@@ -729,133 +594,67 @@ export default function AdminPage() {
                         setRoleFilter(e.target.value);
                         setPage(1);
                       }}
-                      style={{
-                        height: "42px",
-                        padding: "0 12px",
-                        borderRadius: "10px",
-                        background: "rgba(0,0,0,0.35)",
-                        border: "1px solid var(--border-subtle)",
-                        color: "var(--paper)",
-                        fontSize: "13px",
-                      }}
+                      className="bg-brand-raised border border-brand-neutral/25 rounded-lg px-2.5 py-1.5 text-xs text-brand-light focus:outline-none focus:border-brand-neutral/40"
                     >
                       <option value="ALL">All Roles</option>
                       <option value="STUDENT">Student</option>
                       <option value="PARENT">Parent</option>
                       <option value="ADMIN">Admin</option>
                     </select>
-                  </label>
 
-                  <span style={{ fontSize: "13px", color: "var(--mist)", marginLeft: "auto" }}>
-                    Showing {sortedUsers.length} of {users.length} accounts
-                  </span>
+                    <span className="text-xs text-brand-muted ml-2 font-mono">
+                      {sortedUsers.length} total
+                    </span>
+                  </div>
                 </div>
 
                 {/* Users Table */}
-                <div
-                  style={{
-                    background: "var(--surface-1)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "18px",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                <div className="rounded-xl bg-brand-secondary border border-brand-neutral/20 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr
-                          style={{
-                            background: "rgba(255,255,255,0.03)",
-                            borderBottom: "1px solid var(--border-subtle)",
-                            color: "var(--mist)",
-                            fontSize: "11px",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.08em",
-                          }}
-                        >
-                          <th
-                            onClick={() => handleSort("name")}
-                            style={{ padding: "14px 18px", cursor: "pointer" }}
-                          >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              User <ArrowUpDown size={12} />
-                            </span>
+                        <tr className="border-b border-brand-neutral/20 text-[11px] font-mono uppercase tracking-wider text-brand-muted bg-brand-raised">
+                          <th onClick={() => handleSort("name")} className="p-3 cursor-pointer">
+                            <span className="inline-flex items-center gap-1">User <ArrowUpDown size={11} /></span>
                           </th>
-                          <th
-                            onClick={() => handleSort("role")}
-                            style={{ padding: "14px 18px", cursor: "pointer" }}
-                          >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              Role <ArrowUpDown size={12} />
-                            </span>
+                          <th onClick={() => handleSort("role")} className="p-3 cursor-pointer">
+                            <span className="inline-flex items-center gap-1">Role <ArrowUpDown size={11} /></span>
                           </th>
-                          <th
-                            onClick={() => handleSort("materialsCount")}
-                            style={{ padding: "14px 18px", cursor: "pointer" }}
-                          >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              Library <ArrowUpDown size={12} />
-                            </span>
+                          <th onClick={() => handleSort("materialsCount")} className="p-3 cursor-pointer">
+                            <span className="inline-flex items-center gap-1">Docs <ArrowUpDown size={11} /></span>
                           </th>
-                          <th
-                            onClick={() => handleSort("quizAttemptsCount")}
-                            style={{ padding: "14px 18px", cursor: "pointer" }}
-                          >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              Quizzes <ArrowUpDown size={12} />
-                            </span>
+                          <th onClick={() => handleSort("quizAttemptsCount")} className="p-3 cursor-pointer">
+                            <span className="inline-flex items-center gap-1">Quizzes <ArrowUpDown size={11} /></span>
                           </th>
-                          <th
-                            onClick={() => handleSort("studyMinutes")}
-                            style={{ padding: "14px 18px", cursor: "pointer" }}
-                          >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              Study Time <ArrowUpDown size={12} />
-                            </span>
+                          <th onClick={() => handleSort("studyMinutes")} className="p-3 cursor-pointer">
+                            <span className="inline-flex items-center gap-1">Study Time <ArrowUpDown size={11} /></span>
                           </th>
-                          <th
-                            onClick={() => handleSort("enabled")}
-                            style={{ padding: "14px 18px", cursor: "pointer" }}
-                          >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              Status <ArrowUpDown size={12} />
-                            </span>
+                          <th onClick={() => handleSort("enabled")} className="p-3 cursor-pointer">
+                            <span className="inline-flex items-center gap-1">Status <ArrowUpDown size={11} /></span>
                           </th>
-                          <th style={{ padding: "14px 18px" }}>Actions</th>
+                          <th className="p-3 text-right">Actions</th>
                         </tr>
                       </thead>
-                      <tbody>
+                      <tbody className="divide-y divide-brand-neutral/20">
                         {paginatedUsers.map((u) => {
                           const isSelf = currentAdmin?.id === u.id;
                           const isLastAdmin = u.role === "ADMIN" && (system?.admins ?? 0) <= 1;
 
                           return (
-                            <tr key={u.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                              <td style={{ padding: "14px 18px" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                  <strong style={{ color: "var(--paper)" }}>{u.name}</strong>
+                            <tr key={u.id} className="hover:bg-brand-raised/50 transition-colors">
+                              <td className="p-3">
+                                <div className="flex items-center gap-1.5">
+                                  <strong className="text-brand-neutral font-medium">{u.name}</strong>
                                   {isSelf && (
-                                    <span
-                                      style={{
-                                        fontSize: "10px",
-                                        fontWeight: 700,
-                                        padding: "1px 6px",
-                                        borderRadius: "4px",
-                                        background: "rgba(196,255,106,0.15)",
-                                        color: "var(--accent-lime)",
-                                      }}
-                                    >
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-brand-accent/20 text-brand-light font-mono">
                                       You
                                     </span>
                                   )}
                                 </div>
-                                <span style={{ fontSize: "12px", color: "var(--mist)", display: "block" }}>
-                                  {u.email}
-                                </span>
+                                <span className="text-[11px] text-brand-muted block mt-0.5">{u.email}</span>
                               </td>
 
-                              <td style={{ padding: "14px 18px" }}>
-                                {/* Accessible aria-label on each select dropdown */}
+                              <td className="p-3">
                                 <select
                                   value={u.role}
                                   aria-label={`Select role for ${u.name}`}
@@ -866,23 +665,7 @@ export default function AdminPage() {
                                       setPendingRoleChange({ user: u, newRole });
                                     }
                                   }}
-                                  style={{
-                                    height: "36px",
-                                    padding: "0 10px",
-                                    borderRadius: "8px",
-                                    background: isSelf ? "rgba(255,255,255,0.02)" : "rgba(0,0,0,0.4)",
-                                    border: "1px solid var(--border-subtle)",
-                                    color:
-                                      u.role === "ADMIN"
-                                        ? "var(--accent-lime)"
-                                        : u.role === "PARENT"
-                                        ? "var(--mint)"
-                                        : "var(--paper)",
-                                    fontWeight: 600,
-                                    fontSize: "12px",
-                                    cursor: isSelf ? "not-allowed" : "pointer",
-                                    opacity: isSelf ? 0.7 : 1,
-                                  }}
+                                  className="bg-brand-raised border border-brand-neutral/25 rounded px-2 py-1 text-xs text-brand-neutral focus:outline-none focus:border-brand-neutral/40 disabled:opacity-60"
                                 >
                                   <option value="STUDENT">STUDENT</option>
                                   <option value="PARENT">PARENT</option>
@@ -890,49 +673,31 @@ export default function AdminPage() {
                                 </select>
                               </td>
 
-                              <td style={{ padding: "14px 18px", color: "var(--mist)" }}>
-                                {u.materialsCount ?? 0} docs
-                              </td>
+                              <td className="p-3 text-brand-neutral font-mono">{u.materialsCount ?? 0}</td>
+                              <td className="p-3 text-brand-neutral font-mono">{u.quizAttemptsCount ?? 0}</td>
+                              <td className="p-3 text-brand-neutral font-mono">{formatDuration(u.studyMinutes ?? 0)}</td>
 
-                              <td style={{ padding: "14px 18px", color: "var(--mist)" }}>
-                                {u.quizAttemptsCount ?? 0} attempts
-                              </td>
-
-                              <td style={{ padding: "14px 18px", color: "var(--paper)", fontWeight: 500 }}>
-                                {formatDuration(u.studyMinutes ?? 0)}
-                              </td>
-
-                              <td style={{ padding: "14px 18px" }}>
+                              <td className="p-3">
                                 <span
-                                  style={{
-                                    fontSize: "11px",
-                                    padding: "3px 8px",
-                                    borderRadius: "6px",
-                                    background: u.enabled
-                                      ? "rgba(196, 255, 106, 0.12)"
-                                      : "rgba(255, 107, 107, 0.12)",
-                                    color: u.enabled ? "var(--accent-lime)" : "var(--danger)",
-                                    fontWeight: 700,
-                                  }}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                                    u.enabled ? "bg-emerald-500/10 text-emerald-400" : "bg-rose-500/10 text-rose-400"
+                                  }`}
                                 >
                                   {u.enabled ? "ACTIVE" : "SUSPENDED"}
                                 </span>
                               </td>
 
-                              <td style={{ padding: "14px 18px" }}>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
+                              <td className="p-3 text-right">
+                                <button
+                                  type="button"
                                   disabled={isSelf || (isLastAdmin && u.enabled)}
                                   onClick={() => setPendingToggleStatus(u)}
-                                  style={{
-                                    fontSize: "12px",
-                                    color: u.enabled ? "var(--danger)" : "var(--accent-lime)",
-                                    opacity: isSelf || (isLastAdmin && u.enabled) ? 0.4 : 1,
-                                  }}
+                                  className={`text-xs ${
+                                    u.enabled ? "text-rose-400 hover:text-rose-300" : "text-emerald-400 hover:text-emerald-300"
+                                  } disabled:opacity-40 transition-colors`}
                                 >
                                   {u.enabled ? "Suspend" : "Activate"}
-                                </Button>
+                                </button>
                               </td>
                             </tr>
                           );
@@ -941,27 +706,17 @@ export default function AdminPage() {
                     </table>
                   </div>
 
-                  {/* Pagination Controls */}
+                  {/* Pagination */}
                   {totalPages > 1 && (
-                    <div
-                      style={{
-                        padding: "14px 18px",
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        borderTop: "1px solid var(--border-subtle)",
-                      }}
-                    >
-                      <span style={{ fontSize: "12px", color: "var(--mist)" }}>
-                        Page {page} of {totalPages}
-                      </span>
-                      <div style={{ display: "flex", gap: "8px" }}>
+                    <div className="p-3 border-t border-brand-neutral/20 flex items-center justify-between text-xs text-brand-muted">
+                      <span>Page {page} of {totalPages}</span>
+                      <div className="flex gap-1.5">
                         <Button
                           variant="secondary"
                           size="sm"
                           disabled={page <= 1}
                           onClick={() => setPage((p) => Math.max(1, p - 1))}
-                          icon={<ChevronLeft size={14} />}
+                          className="text-xs py-1 px-2.5"
                         >
                           Previous
                         </Button>
@@ -970,7 +725,7 @@ export default function AdminPage() {
                           size="sm"
                           disabled={page >= totalPages}
                           onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                          iconRight={<ChevronRight size={14} />}
+                          className="text-xs py-1 px-2.5"
                         >
                           Next
                         </Button>
@@ -983,75 +738,26 @@ export default function AdminPage() {
 
             {/* TAB 2: Document Pipeline */}
             {activeTab === "documents" && (
-              <div
-                style={{
-                  background: "var(--surface-1)",
-                  border: "1px solid var(--border-subtle)",
-                  borderRadius: "18px",
-                  padding: "24px",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: "16px",
-                    marginBottom: "20px",
-                  }}
-                >
+              <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20 space-y-4">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                   <div>
-                    <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 4px" }}>
-                      Document Ingestion & NLP Pipeline
-                    </h3>
-                    <p style={{ margin: 0, fontSize: "13px", color: "var(--mist)" }}>
-                      Live monitor for student uploads, optical character extraction, and summarization tasks.
-                    </p>
+                    <h3 className="text-sm font-semibold text-brand-light">Document Processing Pipeline</h3>
+                    <p className="text-xs text-brand-muted mt-0.5">Live extraction and summarization monitor</p>
                   </div>
 
-                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                    <div style={{ position: "relative" }}>
-                      <Search
-                        size={14}
-                        style={{
-                          position: "absolute",
-                          left: "12px",
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          color: "var(--mist)",
-                        }}
-                      />
-                      <input
-                        type="text"
-                        value={docSearch}
-                        onChange={(e) => setDocSearch(e.target.value)}
-                        placeholder="Search document title or owner..."
-                        style={{
-                          height: "38px",
-                          padding: "0 12px 0 34px",
-                          borderRadius: "8px",
-                          background: "rgba(0,0,0,0.35)",
-                          border: "1px solid var(--border-subtle)",
-                          color: "var(--paper)",
-                          fontSize: "13px",
-                        }}
-                      />
-                    </div>
-
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={docSearch}
+                      onChange={(e) => setDocSearch(e.target.value)}
+                      placeholder="Filter title or owner..."
+                      className="bg-brand-raised border border-brand-neutral/25 rounded-lg px-2.5 py-1.5 text-xs text-brand-light placeholder:text-brand-muted focus:outline-none focus:border-brand-neutral/40"
+                    />
                     <select
                       value={docStatusFilter}
                       aria-label="Filter documents by ingestion status"
                       onChange={(e) => setDocStatusFilter(e.target.value)}
-                      style={{
-                        height: "38px",
-                        padding: "0 12px",
-                        borderRadius: "8px",
-                        background: "rgba(0,0,0,0.35)",
-                        border: "1px solid var(--border-subtle)",
-                        color: "var(--paper)",
-                        fontSize: "13px",
-                      }}
+                      className="bg-brand-raised border border-brand-neutral/25 rounded-lg px-2 py-1.5 text-xs text-brand-light focus:outline-none focus:border-brand-neutral/40"
                     >
                       <option value="ALL">All Statuses</option>
                       <option value="COMPLETED">Completed</option>
@@ -1061,76 +767,47 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr
-                        style={{
-                          background: "rgba(255,255,255,0.03)",
-                          borderBottom: "1px solid var(--border-subtle)",
-                          color: "var(--mist)",
-                          fontSize: "11px",
-                          textTransform: "uppercase",
-                        }}
-                      >
-                        <th style={{ padding: "12px 16px" }}>Document</th>
-                        <th style={{ padding: "12px 16px" }}>Owner</th>
-                        <th style={{ padding: "12px 16px" }}>Size</th>
-                        <th style={{ padding: "12px 16px" }}>Status</th>
-                        <th style={{ padding: "12px 16px" }}>Diagnostic Details</th>
-                        <th style={{ padding: "12px 16px" }}>Uploaded</th>
+                      <tr className="border-b border-brand-neutral/20 text-[11px] font-mono uppercase tracking-wider text-brand-muted">
+                        <th className="py-2.5 px-3">Document</th>
+                        <th className="py-2.5 px-3">Owner</th>
+                        <th className="py-2.5 px-3">Size</th>
+                        <th className="py-2.5 px-3">Status</th>
+                        <th className="py-2.5 px-3">Details</th>
+                        <th className="py-2.5 px-3">Uploaded</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-brand-neutral/20">
                       {filteredDocuments.map((doc) => (
-                        <tr key={doc.id} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
-                          <td style={{ padding: "12px 16px" }}>
-                            <strong style={{ color: "var(--paper)", display: "block" }}>{doc.title}</strong>
-                            <span style={{ fontSize: "11px", color: "var(--mist)" }}>{doc.fileName}</span>
+                        <tr key={doc.id} className="hover:bg-brand-raised/50">
+                          <td className="py-2.5 px-3">
+                            <span className="font-medium text-brand-neutral block">{doc.title}</span>
+                            <span className="text-[11px] text-brand-muted">{doc.fileName}</span>
                           </td>
-                          <td style={{ padding: "12px 16px" }}>
-                            <span style={{ color: "var(--paper)" }}>{doc.ownerName}</span>
-                            <span style={{ display: "block", fontSize: "11px", color: "var(--mist)" }}>{doc.ownerEmail}</span>
+                          <td className="py-2.5 px-3">
+                            <span className="text-brand-neutral block">{doc.ownerName}</span>
+                            <span className="text-[11px] text-brand-muted">{doc.ownerEmail}</span>
                           </td>
-                          <td style={{ padding: "12px 16px", color: "var(--mist)" }}>
-                            {formatFileSize(doc.fileSize)}
-                          </td>
-                          <td style={{ padding: "12px 16px" }}>
+                          <td className="py-2.5 px-3 font-mono text-brand-neutral">{formatFileSize(doc.fileSize)}</td>
+                          <td className="py-2.5 px-3">
                             <span
-                              style={{
-                                fontSize: "11px",
-                                padding: "3px 8px",
-                                borderRadius: "6px",
-                                background:
-                                  doc.status === "COMPLETED"
-                                    ? "rgba(196, 255, 106, 0.12)"
-                                    : doc.status === "FAILED"
-                                    ? "rgba(255, 107, 107, 0.12)"
-                                    : "rgba(255, 204, 0, 0.12)",
-                                color:
-                                  doc.status === "COMPLETED"
-                                    ? "var(--accent-lime)"
-                                    : doc.status === "FAILED"
-                                    ? "var(--danger)"
-                                    : "#f6c445",
-                                fontWeight: 700,
-                              }}
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${
+                                doc.status === "COMPLETED"
+                                  ? "bg-emerald-500/10 text-emerald-400"
+                                  : doc.status === "FAILED"
+                                  ? "bg-rose-500/10 text-rose-400"
+                                  : "bg-amber-500/10 text-amber-400"
+                              }`}
                             >
                               {doc.status}
                             </span>
                           </td>
-                          <td
-                            style={{
-                              padding: "12px 16px",
-                              color: doc.processingError ? "var(--danger)" : "var(--mist)",
-                              fontSize: "12px",
-                              maxWidth: "240px",
-                              wordBreak: "break-word",
-                            }}
-                          >
-                            {doc.processingError ? doc.processingError : "Extraction verified"}
+                          <td className="py-2.5 px-3 text-brand-neutral text-[11px] max-w-xs truncate">
+                            {doc.processingError ? doc.processingError : "Verified"}
                           </td>
-                          <td style={{ padding: "12px 16px", color: "var(--mist)", fontSize: "12px" }}>
+                          <td className="py-2.5 px-3 text-brand-muted font-mono text-[11px]">
                             {new Date(doc.createdAt).toLocaleDateString()}
                           </td>
                         </tr>
@@ -1141,304 +818,134 @@ export default function AdminPage() {
               </div>
             )}
 
-            {/* TAB 3: Recent Activity Stream */}
+            {/* TAB 3: Activity Feed */}
             {activeTab === "activity" && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))",
-                  gap: "24px",
-                }}
-              >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Recent Quizzes */}
-                <div
-                  style={{
-                    background: "var(--surface-1)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "18px",
-                    padding: "24px",
-                  }}
-                >
-                  <h3 style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Award size={16} color="var(--accent-lime)" /> Recent Quiz Submissions
+                <div className="p-4 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                  <h3 className="text-xs font-semibold text-brand-neutral mb-3 flex items-center gap-1.5">
+                    <Award size={13} className="text-brand-neutral" /> Recent Quizzes
                   </h3>
                   {activity?.quizzes && activity.quizzes.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div className="space-y-2">
                       {activity.quizzes.map((q) => (
-                        <div
-                          key={q.id}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "12px 14px",
-                            background: "rgba(255, 255, 255, 0.02)",
-                            border: "1px solid var(--border-subtle)",
-                            borderRadius: "10px",
-                          }}
-                        >
-                          <div>
-                            <strong style={{ fontSize: "13px", color: "var(--paper)", display: "block" }}>
-                              {q.studentName}
-                            </strong>
-                            <span style={{ fontSize: "11px", color: "var(--mist)" }}>{q.quizTitle}</span>
+                        <div key={q.id} className="p-2 rounded bg-brand-raised text-xs">
+                          <div className="flex justify-between font-medium text-brand-neutral">
+                            <span className="truncate mr-2">{q.studentName}</span>
+                            <span className="font-mono text-brand-neutral">{q.score}/{q.total}</span>
                           </div>
-                          <span
-                            style={{
-                              fontSize: "13px",
-                              fontWeight: 700,
-                              color: q.accuracyPercent >= 70 ? "var(--accent-lime)" : "var(--danger)",
-                            }}
-                          >
-                            {q.score}/{q.total} ({q.accuracyPercent}%)
-                          </span>
+                          <span className="text-[11px] text-brand-muted truncate block mt-0.5">{q.quizTitle}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p style={{ fontSize: "13px", color: "var(--mist)" }}>No recent quiz activity.</p>
+                    <p className="text-xs text-brand-muted">No recent quizzes.</p>
                   )}
                 </div>
 
-                {/* Recent Focus Blocks */}
-                <div
-                  style={{
-                    background: "var(--surface-1)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "18px",
-                    padding: "24px",
-                  }}
-                >
-                  <h3 style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Clock size={16} color="var(--mint)" /> Recent Focus Sessions
+                {/* Recent Sessions */}
+                <div className="p-4 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                  <h3 className="text-xs font-semibold text-brand-neutral mb-3 flex items-center gap-1.5">
+                    <Clock size={13} className="text-emerald-400" /> Recent Focus Sessions
                   </h3>
                   {activity?.sessions && activity.sessions.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div className="space-y-2">
                       {activity.sessions.map((s) => (
-                        <div
-                          key={s.id}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "12px 14px",
-                            background: "rgba(255, 255, 255, 0.02)",
-                            border: "1px solid var(--border-subtle)",
-                            borderRadius: "10px",
-                          }}
-                        >
-                          <div>
-                            <strong style={{ fontSize: "13px", color: "var(--paper)", display: "block" }}>
-                              {s.studentName}
-                            </strong>
-                            <span style={{ fontSize: "11px", color: "var(--mist)" }}>
-                              {new Date(s.startedAt).toLocaleString(undefined, {
-                                month: "short",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              })}
-                            </span>
+                        <div key={s.id} className="p-2 rounded bg-brand-raised text-xs">
+                          <div className="flex justify-between font-medium text-brand-neutral">
+                            <span className="truncate mr-2">{s.studentName}</span>
+                            <span className="font-mono text-emerald-400">{s.durationMinutes}m</span>
                           </div>
-                          <span style={{ fontSize: "13px", fontWeight: 700, color: "var(--accent-lime)" }}>
-                            {s.durationMinutes} min
+                          <span className="text-[11px] text-brand-muted block mt-0.5">
+                            {new Date(s.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p style={{ fontSize: "13px", color: "var(--mist)" }}>No recent focus blocks.</p>
+                    <p className="text-xs text-brand-muted">No recent sessions.</p>
                   )}
                 </div>
 
-                {/* Recent Registrations */}
-                <div
-                  style={{
-                    background: "var(--surface-1)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "18px",
-                    padding: "24px",
-                  }}
-                >
-                  <h3 style={{ fontSize: "15px", fontWeight: 600, margin: "0 0 16px", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <Users size={16} color="var(--info)" /> New Account Registrations
+                {/* Recent Users */}
+                <div className="p-4 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                  <h3 className="text-xs font-semibold text-brand-neutral mb-3 flex items-center gap-1.5">
+                    <Users size={13} className="text-brand-neutral" /> New Accounts
                   </h3>
                   {activity?.users && activity.users.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div className="space-y-2">
                       {activity.users.map((u) => (
-                        <div
-                          key={u.id}
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "12px 14px",
-                            background: "rgba(255, 255, 255, 0.02)",
-                            border: "1px solid var(--border-subtle)",
-                            borderRadius: "10px",
-                          }}
-                        >
-                          <div>
-                            <strong style={{ fontSize: "13px", color: "var(--paper)", display: "block" }}>
-                              {u.name}
-                            </strong>
-                            <span style={{ fontSize: "11px", color: "var(--mist)" }}>{u.email}</span>
+                        <div key={u.id} className="p-2 rounded bg-brand-raised text-xs">
+                          <div className="flex justify-between font-medium text-brand-neutral">
+                            <span className="truncate mr-2">{u.name}</span>
+                            <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-brand-secondary text-brand-neutral">{u.role}</span>
                           </div>
-                          <span
-                            style={{
-                              fontSize: "11px",
-                              padding: "2px 8px",
-                              borderRadius: "6px",
-                              background: "rgba(255,255,255,0.06)",
-                              color: "var(--paper)",
-                            }}
-                          >
-                            {u.role}
-                          </span>
+                          <span className="text-[11px] text-brand-muted truncate block mt-0.5">{u.email}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p style={{ fontSize: "13px", color: "var(--mist)" }}>No recent sign-ups.</p>
+                    <p className="text-xs text-brand-muted">No recent accounts.</p>
                   )}
                 </div>
               </div>
             )}
 
-            {/* TAB 4: Telemetry Diagnostics & Live In-Session Audit Log */}
+            {/* TAB 4: Telemetry Diagnostics */}
             {activeTab === "telemetry" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-                {/* Audit Log Panel */}
-                <div
-                  style={{
-                    background: "var(--surface-1)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "18px",
-                    padding: "24px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-                    <History size={18} color="var(--accent-lime)" />
-                    <div>
-                      <h3 style={{ fontSize: "16px", fontWeight: 600, margin: 0 }}>
-                        Administrative Security Audit Log
-                      </h3>
-                      <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--mist)" }}>
-                        Cryptographically traceable record of role alterations and account state actions.
-                      </p>
-                    </div>
+              <div className="space-y-4">
+                {/* Audit Log */}
+                <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <History size={15} className="text-brand-neutral" />
+                    <h3 className="text-xs font-semibold text-brand-light">Security Audit Log</h3>
                   </div>
 
-                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
                     {auditLog.map((entry) => (
-                      <div
-                        key={entry.id}
-                        style={{
-                          padding: "12px 16px",
-                          borderRadius: "10px",
-                          background: "rgba(255, 255, 255, 0.02)",
-                          border: "1px solid var(--border-subtle)",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          fontSize: "13px",
-                        }}
-                      >
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span
-                              style={{
-                                fontSize: "10px",
-                                fontWeight: 700,
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                                background:
-                                  entry.action === "ROLE_CHANGE"
-                                    ? "rgba(196,255,106,0.15)"
-                                    : "rgba(255,107,107,0.15)",
-                                color:
-                                  entry.action === "ROLE_CHANGE"
-                                    ? "var(--accent-lime)"
-                                    : "var(--danger)",
-                              }}
-                            >
-                              {entry.action}
-                            </span>
-                            <strong style={{ color: "var(--paper)" }}>{entry.targetUser}</strong>
-                          </div>
-                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--mist)" }}>
-                            {entry.details}
-                          </p>
+                      <div key={entry.id} className="flex items-center justify-between p-2 rounded bg-brand-raised text-xs">
+                        <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                          <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-brand-accent/20 text-brand-light shrink-0">
+                            {entry.action}
+                          </span>
+                          <span className="text-brand-neutral truncate">{entry.details}</span>
                         </div>
-                        <span style={{ fontSize: "11px", color: "var(--mist)", whiteSpace: "nowrap" }}>
-                          {entry.timestamp}
-                        </span>
+                        <span className="text-[11px] font-mono text-brand-muted shrink-0">{entry.timestamp}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Host Diagnostics Grid */}
-                <div
-                  style={{
-                    background: "var(--surface-1)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: "18px",
-                    padding: "24px",
-                  }}
-                >
-                  <h3 style={{ fontSize: "16px", fontWeight: 600, margin: "0 0 16px" }}>
-                    Host Machine & Microservice Health
-                  </h3>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-                      gap: "16px",
-                    }}
-                  >
-                    <div style={{ padding: "16px", background: "rgba(0,0,0,0.3)", borderRadius: "12px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--mist)", textTransform: "uppercase" }}>
-                        JVM Allocated Heap
-                      </span>
-                      <h4 style={{ margin: "4px 0", fontSize: "18px", color: "var(--accent-lime)" }}>
-                        {system.serverTelemetry.jvmUsedMemoryMB} MB / {system.serverTelemetry.jvmMaxMemoryMB} MB
-                      </h4>
-                      <p style={{ margin: 0, fontSize: "12px", color: "var(--mist)" }}>
-                        Usage: {system.serverTelemetry.memoryUsagePercent}%
-                      </p>
+                {/* Host Diagnostics */}
+                <div className="p-5 rounded-xl bg-brand-secondary border border-brand-neutral/20">
+                  <h3 className="text-xs font-semibold text-brand-light mb-3">Host Diagnostics</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3 rounded-lg bg-brand-raised">
+                      <span className="text-[10px] font-mono text-brand-muted uppercase">JVM Heap</span>
+                      <div className="text-xs font-semibold text-brand-neutral mt-1">
+                        {system.serverTelemetry.jvmUsedMemoryMB}MB / {system.serverTelemetry.jvmMaxMemoryMB}MB
+                      </div>
                     </div>
 
-                    <div style={{ padding: "16px", background: "rgba(0,0,0,0.3)", borderRadius: "12px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--mist)", textTransform: "uppercase" }}>
-                        FastAPI ML Microservice
-                      </span>
-                      <h4 style={{ margin: "4px 0", fontSize: "18px", color: "var(--mint)" }}>
-                        {system.serverTelemetry.mlEngineStatus}
-                      </h4>
-                      <p style={{ margin: 0, fontSize: "12px", color: "var(--mist)" }}>Port 8000 (Internal Token)</p>
+                    <div className="p-3 rounded-lg bg-brand-raised">
+                      <span className="text-[10px] font-mono text-brand-muted uppercase">ML Microservice</span>
+                      <div className="text-xs font-semibold text-emerald-400 mt-1">
+                        {system.serverTelemetry.mlEngineStatus} (Port 8000)
+                      </div>
                     </div>
 
-                    <div style={{ padding: "16px", background: "rgba(0,0,0,0.3)", borderRadius: "12px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--mist)", textTransform: "uppercase" }}>
-                        Host CPU Architecture
-                      </span>
-                      <h4 style={{ margin: "4px 0", fontSize: "18px", color: "var(--paper)" }}>
-                        {system.serverTelemetry.availableProcessors} Available Cores
-                      </h4>
-                      <p style={{ margin: 0, fontSize: "12px", color: "var(--mist)" }}>JDK {system.serverTelemetry.javaVersion}</p>
+                    <div className="p-3 rounded-lg bg-brand-raised">
+                      <span className="text-[10px] font-mono text-brand-muted uppercase">Host Cores</span>
+                      <div className="text-xs font-semibold text-brand-neutral mt-1">
+                        {system.serverTelemetry.availableProcessors} Cores (JDK {system.serverTelemetry.javaVersion})
+                      </div>
                     </div>
 
-                    <div style={{ padding: "16px", background: "rgba(0,0,0,0.3)", borderRadius: "12px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--mist)", textTransform: "uppercase" }}>
-                        Platform Time Synchronization
-                      </span>
-                      <h4 style={{ margin: "4px 0", fontSize: "18px", color: "var(--paper)" }}>
+                    <div className="p-3 rounded-lg bg-brand-raised">
+                      <span className="text-[10px] font-mono text-brand-muted uppercase">System Time</span>
+                      <div className="text-xs font-semibold text-brand-neutral mt-1">
                         {new Date(system.serverTelemetry.serverTime).toLocaleTimeString()}
-                      </h4>
-                      <p style={{ margin: 0, fontSize: "12px", color: "var(--mist)" }}>
-                        {new Date(system.serverTelemetry.serverTime).toLocaleDateString()}
-                      </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1448,37 +955,34 @@ export default function AdminPage() {
         ) : null}
       </main>
 
-      {/* Role Change Confirmation Dialog */}
+      {/* Confirmation Dialogs */}
       {pendingRoleChange && (
         <ConfirmDialog
           isOpen={true}
           title="Change User Access Role?"
-          description={`Are you sure you want to change ${pendingRoleChange.user.name}'s role from ${pendingRoleChange.user.role} to ${pendingRoleChange.newRole}? The updated permissions will take effect upon their next session refresh.`}
+          description={`Are you sure you want to change ${pendingRoleChange.user.name}'s role to ${pendingRoleChange.newRole}?`}
           confirmLabel={`Set Role to ${pendingRoleChange.newRole}`}
-          cancelLabel="Cancel"
           danger={pendingRoleChange.newRole !== "ADMIN" && pendingRoleChange.user.role === "ADMIN"}
           onConfirm={() => void executeRoleChange()}
           onCancel={() => setPendingRoleChange(null)}
         />
       )}
 
-      {/* Toggle Status Confirmation Dialog */}
       {pendingToggleStatus && (
         <ConfirmDialog
           isOpen={true}
-          title={pendingToggleStatus.enabled ? "Suspend User Account?" : "Activate User Account?"}
+          title={pendingToggleStatus.enabled ? "Suspend Account?" : "Activate Account?"}
           description={
             pendingToggleStatus.enabled
-              ? `Are you sure you want to suspend ${pendingToggleStatus.name}'s account? They will be immediately blocked from signing in until re-activated.`
-              : `Are you sure you want to restore access for ${pendingToggleStatus.name}?`
+              ? `Are you sure you want to suspend ${pendingToggleStatus.name}'s account?`
+              : `Are you sure you want to activate ${pendingToggleStatus.name}'s account?`
           }
-          confirmLabel={pendingToggleStatus.enabled ? "Suspend Account" : "Activate Account"}
-          cancelLabel="Cancel"
+          confirmLabel={pendingToggleStatus.enabled ? "Suspend" : "Activate"}
           danger={pendingToggleStatus.enabled}
           onConfirm={() => void executeToggleStatus()}
           onCancel={() => setPendingToggleStatus(null)}
         />
       )}
-    </>
+    </div>
   );
 }

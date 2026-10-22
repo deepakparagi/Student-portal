@@ -11,6 +11,9 @@ import org.springframework.http.client.MultipartBodyBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import reactor.netty.http.client.HttpClient;
+import java.time.Duration;
 import reactor.core.publisher.Mono;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -30,7 +33,10 @@ public class MaterialProcessor {
                              ObjectMapper json) {
         this.materials = materials;
         this.chunkRepo = chunkRepo;
+        HttpClient httpClient = HttpClient.create()
+                .responseTimeout(Duration.ofSeconds(300));
         this.ml = WebClient.builder()
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .baseUrl(mlUrl)
                 .defaultHeader("X-Internal-Token", mlInternalToken)
                 .build();
@@ -47,7 +53,7 @@ public class MaterialProcessor {
     }
 
     public void process(Long id, Path file) {
-        processNow(id, file);
+        java.util.concurrent.CompletableFuture.runAsync(() -> processNow(id, file));
     }
 
     private void processNow(Long id, Path file) {
@@ -79,19 +85,31 @@ public class MaterialProcessor {
             System.err.println("[MaterialProcessor] Extract response: " + extracted);
 
             String text = Objects.toString(extracted.get("text"), "");
-
-            // Persist chunks
+            String fileType = Objects.toString(extracted.get("file_type"), "unknown");
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> chunks = (List<Map<String, Object>>) extracted.get("chunks");
+            @SuppressWarnings("unchecked")
+            List<String> warnings = (List<String>) extracted.get("extraction_warnings");
+
+            if (warnings != null && !warnings.isEmpty()) {
+                warnings.forEach(w -> System.err.println("[MaterialProcessor] Extraction warning: " + w));
+            }
+
+            // Persist chunks to MySQL (for backward compatibility and exact text retrieval)
             if (chunks != null) {
                 persistChunks(id, chunks);
+            }
+
+            // Index chunks in ChromaDB vector store for semantic search
+            if (chunks != null && !chunks.isEmpty()) {
+                indexChunksInVectorStore(id, chunks, fileType, fileName);
             }
 
             // Summarize
             Map<?, ?> summary = ml.post()
                     .uri("/ml/v1/summarize")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(Map.of("text", text))
+                    .bodyValue(Map.of("text", text, "material_id", id, "style", "detailed"))
                     .retrieve()
                     .bodyToMono(Map.class)
                     .block();
@@ -119,11 +137,49 @@ public class MaterialProcessor {
                     json.writeValueAsString(topics.get("topics")),
                     json.writeValueAsString(keywords.get("keywords")));
             materials.save(material);
+
+            System.err.println("[MaterialProcessor] Successfully processed material " + id);
         } catch (Exception e) {
             System.err.println("[MaterialProcessor] Error processing material " + id + ": " + e.getMessage());
             e.printStackTrace(System.err);
             material.fail("Processing could not be completed: " + e.getMessage());
             materials.save(material);
+        }
+    }
+
+    public void deleteVectorIndex(Long materialId) {
+        try {
+            ml.delete()
+                    .uri("/ml/v1/index-material/" + materialId)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
+            System.err.println("[MaterialProcessor] Successfully deleted vector index for material " + materialId);
+        } catch (Exception e) {
+            System.err.println("[MaterialProcessor] Failed to delete vector index for material " + materialId + ": " + e.getMessage());
+        }
+    }
+
+    private void indexChunksInVectorStore(Long materialId, List<Map<String, Object>> chunks, String fileType, String fileName) {
+        try {
+            Map<?, ?> result = ml.post()
+                    .uri("/ml/v1/index-material")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(Map.of(
+                            "material_id", materialId,
+                            "chunks", chunks,
+                            "file_type", fileType,
+                            "filename", fileName
+                    ))
+                    .retrieve()
+                    .bodyToMono(Map.class)
+                    .block();
+
+            System.err.println("[MaterialProcessor] Vector index result: " + result);
+        } catch (Exception e) {
+            System.err.println("[MaterialProcessor] Vector indexing failed for material " + materialId + ": " + e.getMessage());
+            // Don't fail the whole processing if vector indexing fails
+            e.printStackTrace(System.err);
         }
     }
 

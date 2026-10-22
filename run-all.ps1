@@ -5,15 +5,15 @@
 Write-Host ">>> Starting Smart Study Portal Services..." -ForegroundColor Cyan
 
 # 1. MySQL Server
-$mysqlPortCheck = Get-NetTCPConnection -LocalPort 3306 -State Listen -ErrorAction SilentlyContinue
+$mysqlPortCheck = Get-NetTCPConnection -LocalPort 3307 -State Listen -ErrorAction SilentlyContinue
 if (-not $mysqlPortCheck) {
-    Write-Host "[1/4] Starting MySQL Server (Port 3306)..." -ForegroundColor Yellow
+    Write-Host "[1/4] Starting MySQL Server (Port 3307)..." -ForegroundColor Yellow
     $mysqldPath = "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysqld.exe"
-    $dataDir = "$PSScriptRoot\mysql-local\data"
-    Start-Process -FilePath $mysqldPath -ArgumentList "--datadir=`"$dataDir`"", "--port=3306", "--console" -WindowStyle Minimized
+    $dataDir = "$PSScriptRoot\mysql-fresh-data"
+    Start-Process -FilePath $mysqldPath -ArgumentList "--datadir=`"$dataDir`"", "--port=3307", "--bind-address=127.0.0.1", "--shared-memory=OFF", "--named-pipe=OFF", "--console" -WindowStyle Minimized
     Start-Sleep -Seconds 3
 } else {
-    Write-Host "[1/4] MySQL is already running on port 3306." -ForegroundColor Green
+    Write-Host "[1/4] MySQL is already running on port 3307." -ForegroundColor Green
 }
 
 # 2. ML Engine (FastAPI)
@@ -31,7 +31,7 @@ if (-not $mlPortCheck) {
 $backendPortCheck = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
 if (-not $backendPortCheck) {
     Write-Host "[3/4] Starting Spring Boot Backend (Port 8080)..." -ForegroundColor Yellow
-    Start-Process -FilePath "mvn.cmd" -ArgumentList "spring-boot:run", "`-Dspring-boot.run.arguments=--spring.datasource.password=dev-password-change-me" -WorkingDirectory "$PSScriptRoot\backend" -WindowStyle Minimized
+    Start-Process -FilePath "mvn.cmd" -ArgumentList "spring-boot:run", "`-Dspring-boot.run.arguments=--spring.datasource.password=dev-password-change-me --spring.datasource.url=jdbc:mysql://localhost:3307/smart_study?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC --app.dev-seed-enabled=true" -WorkingDirectory "$PSScriptRoot\backend" -WindowStyle Minimized
     Write-Host "      Waiting for Spring Boot to initialize..." -ForegroundColor DarkGray
     Start-Sleep -Seconds 8
 } else {
@@ -52,4 +52,4 @@ Write-Host "`n>>> All services initiated!" -ForegroundColor Cyan
 Write-Host "    - Web App:   http://localhost:3000" -ForegroundColor White
 Write-Host "    - REST API:  http://localhost:8080/api/v1" -ForegroundColor White
 Write-Host "    - ML Engine: http://localhost:8000/ml/v1/health" -ForegroundColor White
-Write-Host "    - Database:  localhost:3306 (smart_study)" -ForegroundColor White
+Write-Host "    - Database:  localhost:3307 (smart_study)" -ForegroundColor White
